@@ -68,6 +68,12 @@ object Rendu {
                     prepare(forme.couleur, forme.plein, forme.epaisseur, largeur)
                     canvas.drawOval(enPixels(forme.x, forme.y, forme.l, forme.h, largeur, hauteur), pinceau)
                 }
+                is Forme.Croix -> {
+                    prepare(forme.couleur, plein = false, epaisseur = forme.epaisseur, largeur = largeur)
+                    val cadre = enPixels(forme.x, forme.y, forme.l, forme.h, largeur, hauteur)
+                    canvas.drawLine(cadre.left, cadre.top, cadre.right, cadre.bottom, pinceau)
+                    canvas.drawLine(cadre.right, cadre.top, cadre.left, cadre.bottom, pinceau)
+                }
                 is Forme.Fleche -> dessineFleche(canvas, forme, largeur, hauteur)
                 is Forme.Trait -> dessineTrait(canvas, forme, largeur, hauteur)
                 is Forme.Texte -> dessineTexte(canvas, forme, largeur, hauteur)

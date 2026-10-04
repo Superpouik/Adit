@@ -18,6 +18,7 @@ enum class Outil(val libelle: String) {
     RECTANGLE("Rectangle"),
     CADRE("Cadre"),
     ELLIPSE("Ellipse"),
+    CROIX("Croix"),
     FLECHE("Flèche"),
     LIGNE("Trait"),
     CRAYON("Crayon"),
@@ -61,6 +62,15 @@ fun IconeOutil(outil: Outil, teinte: Color, modifier: Modifier = Modifier) {
             Outil.RECTANGLE -> drawRect(teinte, cadre.topLeft, cadre.size)
             Outil.CADRE -> drawRect(teinte, cadre.topLeft, cadre.size, style = trait)
             Outil.ELLIPSE -> drawOval(teinte, cadre.topLeft, cadre.size, style = trait)
+            Outil.CROIX -> {
+                drawLine(teinte, cadre.topLeft, cadre.bottomRight, strokeWidth = trait.width * 1.6f)
+                drawLine(
+                    teinte,
+                    Offset(cadre.right, cadre.top),
+                    Offset(cadre.left, cadre.bottom),
+                    strokeWidth = trait.width * 1.6f,
+                )
+            }
             Outil.FLECHE -> {
                 val depart = Offset(marge, size.height - marge)
                 val arrivee = Offset(size.width - marge, marge)

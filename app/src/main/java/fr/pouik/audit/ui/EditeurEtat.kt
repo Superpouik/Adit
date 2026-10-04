@@ -30,6 +30,7 @@ object Formes {
             Outil.RECTANGLE -> Forme.Rectangle(id, x, y, 0f, 0f, couleur, plein = true, epaisseur = epaisseur)
             Outil.CADRE -> Forme.Rectangle(id, x, y, 0f, 0f, couleur, plein = false, epaisseur = epaisseur)
             Outil.ELLIPSE -> Forme.Ellipse(id, x, y, 0f, 0f, couleur, plein = false, epaisseur = epaisseur)
+            Outil.CROIX -> Forme.Croix(id, x, y, 0f, 0f, couleur, fr.pouik.audit.donnees.EPAISSEUR_CROIX)
             Outil.FLECHE -> Forme.Fleche(id, x, y, x, y, couleur, epaisseur, pointe = true)
             Outil.LIGNE -> Forme.Fleche(id, x, y, x, y, couleur, epaisseur, pointe = false)
             Outil.CRAYON -> Forme.Trait(id, listOf(x, y), couleur, epaisseur)
@@ -58,6 +59,9 @@ object Formes {
             is Forme.Ellipse -> boiteDepuisCoins(departX, departY, x, y).let {
                 forme.copy(x = it.x, y = it.y, l = it.l, h = it.h)
             }
+            is Forme.Croix -> boiteDepuisCoins(departX, departY, x, y).let {
+                forme.copy(x = it.x, y = it.y, l = it.l, h = it.h)
+            }
             is Forme.Flou -> boiteDepuisCoins(departX, departY, x, y).let {
                 forme.copy(x = it.x, y = it.y, l = it.l, h = it.h)
             }
@@ -76,6 +80,7 @@ object Formes {
     fun estViable(forme: Forme): Boolean = when (forme) {
         is Forme.Rectangle -> forme.l > SEUIL && forme.h > SEUIL
         is Forme.Ellipse -> forme.l > SEUIL && forme.h > SEUIL
+        is Forme.Croix -> forme.l > SEUIL && forme.h > SEUIL
         is Forme.Flou -> forme.l > SEUIL && forme.h > SEUIL
         is Forme.Fleche -> kotlin.math.hypot(forme.x2 - forme.x1, forme.y2 - forme.y1) > SEUIL
         is Forme.Trait -> forme.points.size >= 6
@@ -88,6 +93,7 @@ object Formes {
         is Forme.Fleche -> forme.couleur
         is Forme.Trait -> forme.couleur
         is Forme.Texte -> forme.couleur
+        is Forme.Croix -> forme.couleur
         is Forme.Flou -> null
     }
 
@@ -97,6 +103,7 @@ object Formes {
         is Forme.Fleche -> forme.copy(couleur = couleur)
         is Forme.Trait -> forme.copy(couleur = couleur)
         is Forme.Texte -> forme.copy(couleur = couleur)
+        is Forme.Croix -> forme.copy(couleur = couleur)
         is Forme.Flou -> forme
     }
 
@@ -123,6 +130,7 @@ object Formes {
         is Forme.Ellipse -> forme.copy(epaisseur = epaisseur)
         is Forme.Fleche -> forme.copy(epaisseur = epaisseur)
         is Forme.Trait -> forme.copy(epaisseur = epaisseur)
+        is Forme.Croix -> forme.copy(epaisseur = epaisseur)
         is Forme.Texte, is Forme.Flou -> forme
     }
 

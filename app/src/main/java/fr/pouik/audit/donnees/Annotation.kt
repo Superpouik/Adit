@@ -102,6 +102,26 @@ sealed class Forme {
         val epaisseur: Float = EPAISSEUR_DEFAUT,
     ) : Forme()
 
+    /**
+     * La croix qui marque un prérequis technique.
+     *
+     * Exigée telle quelle par les règles client : « Indiquer l'emplacement des
+     * prérequis techniques par une croix ». Deux traits posés à la main ne sont jamais
+     * centrés ni d'égale longueur, et c'est le symbole que le destinataire cherche sur
+     * chaque photo d'emplacement.
+     */
+    @Serializable
+    @SerialName("croix")
+    data class Croix(
+        override val id: String,
+        val x: Float,
+        val y: Float,
+        val l: Float,
+        val h: Float,
+        val couleur: Long,
+        val epaisseur: Float = EPAISSEUR_CROIX,
+    ) : Forme()
+
     @Serializable
     @SerialName("flou")
     data class Flou(
@@ -116,6 +136,9 @@ sealed class Forme {
 }
 
 const val EPAISSEUR_DEFAUT = 0.006f
+
+/** Une croix se lit de loin : plus épaisse qu'un trait ordinaire. */
+const val EPAISSEUR_CROIX = 0.012f
 const val TAILLE_TEXTE_DEFAUT = 0.045f
 const val FLOU_DEFAUT = 0.02f
 
@@ -168,6 +191,7 @@ fun Forme.Rectangle.sommets(): List<Point> {
 fun Forme.boiteGeometrique(): Boite? = when (this) {
     is Forme.Rectangle -> englobe(sommets())
     is Forme.Ellipse -> Boite(x, y, l, h)
+    is Forme.Croix -> Boite(x, y, l, h)
     is Forme.Flou -> Boite(x, y, l, h)
     is Forme.Fleche -> boiteDepuisCoins(x1, y1, x2, y2)
     is Forme.Trait -> {
@@ -198,6 +222,7 @@ fun Forme.deplacee(dx: Float, dy: Float): Forme = when (this) {
         coins = coins?.mapIndexed { i, v -> if (i % 2 == 0) v + dx else v + dy },
     )
     is Forme.Ellipse -> copy(x = x + dx, y = y + dy)
+    is Forme.Croix -> copy(x = x + dx, y = y + dy)
     is Forme.Flou -> copy(x = x + dx, y = y + dy)
     is Forme.Texte -> copy(x = x + dx, y = y + dy)
     is Forme.Fleche -> copy(x1 = x1 + dx, y1 = y1 + dy, x2 = x2 + dx, y2 = y2 + dy)
@@ -251,6 +276,7 @@ fun avecPoignee(forme: Forme, index: Int, nx: Float, ny: Float, boite: Boite): F
     val h = cadre.h.coerceAtLeast(MINIMUM)
     return when (forme) {
         is Forme.Ellipse -> forme.copy(x = cadre.x, y = cadre.y, l = l, h = h)
+        is Forme.Croix -> forme.copy(x = cadre.x, y = cadre.y, l = l, h = h)
         is Forme.Flou -> forme.copy(x = cadre.x, y = cadre.y, l = l, h = h)
         // Un texte ne s'étire pas : on change sa taille de police en suivant la hauteur
         // tirée. L'étirer déformerait les lettres.

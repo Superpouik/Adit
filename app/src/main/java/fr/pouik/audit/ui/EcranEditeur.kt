@@ -52,6 +52,8 @@ fun EcranEditeur(
     titre: String,
     image: Bitmap?,
     initiales: List<Forme>,
+    /** La légende imposée par le client, déjà composée depuis la fiche de l'écran. */
+    cartouche: String,
     enregistrement: Boolean,
     onRetour: () -> Unit,
     onEnregistre: (List<Forme>) -> Unit,
@@ -96,6 +98,23 @@ fun EcranEditeur(
     fun choisitOutil(nouveau: Outil) {
         if (nouveau != Outil.SELECTION) selection = null
         outil = nouveau
+    }
+
+    /**
+     * Pose la légende réglementaire en haut à gauche, sur son cartouche blanc.
+     *
+     * Les quatre informations qu'elle contient — magasin, rayon, taille, support — sont
+     * les mêmes pour toutes les photos d'un même écran : les retaper à chaque cliché
+     * est le genre de corvée qui finit par produire des légendes qui ne se ressemblent
+     * pas. Elle reste déplaçable et modifiable comme n'importe quel texte.
+     */
+    fun poseCartouche() {
+        if (cartouche.isBlank()) return
+        pousse()
+        val texte = Formes.texte(0.03f, 0.03f, cartouche, 0xFF000000L, 0xFFFFFFFFL)
+        formes = formes + texte
+        selection = texte.id
+        outil = Outil.SELECTION
     }
 
     fun modifieSelection(transforme: (Forme) -> Forme) {
@@ -202,6 +221,8 @@ fun EcranEditeur(
                         opacite = opacite,
                         epaisseur = epaisseur,
                         force = force,
+                        cartouche = cartouche,
+                        onCartouche = { poseCartouche() },
                         onCouleur = {
                             couleur = it
                             modifieSelection { f -> Formes.avecCouleur(f, Formes.teinte(it, opacite)) }
@@ -252,6 +273,8 @@ fun EcranEditeur(
                         opacite = opacite,
                         epaisseur = epaisseur,
                         force = force,
+                        cartouche = cartouche,
+                        onCartouche = { poseCartouche() },
                         onCouleur = {
                             couleur = it
                             modifieSelection { f -> Formes.avecCouleur(f, Formes.teinte(it, opacite)) }

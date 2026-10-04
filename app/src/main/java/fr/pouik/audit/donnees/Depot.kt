@@ -117,6 +117,78 @@ class Depot(dossier: File) {
             )
         }
 
+    /**
+     * Ajoute un emplacement d'écran, et renvoie null s'il y en a déjà deux.
+     *
+     * Deux est la limite du contrat Carrefour, pas une limite technique : la refuser
+     * ici évite qu'un troisième écran parte dans un PV qui n'a pas de case pour lui.
+     * Le numéro reprend la première place libre — supprimer l'écran 1 puis en créer un
+     * autre redonne bien un « Écran 1 », parce que c'est ainsi que le destinataire les
+     * lit, pas comme une suite qui ne doit jamais se répéter.
+     */
+    suspend fun ajouteEcran(id: String): Ecran? {
+        var cree: Ecran? = null
+        modifie(id) { audit ->
+            if (audit.ecrans.size >= 2) return@modifie audit
+            val pris = audit.ecrans.map { it.numero }.toSet()
+            val numero = (1..2).firstOrNull { it !in pris } ?: return@modifie audit
+            val ecran = Ecran(id = UUID.randomUUID().toString(), numero = numero)
+            cree = ecran
+            audit.copy(ecrans = (audit.ecrans + ecran).sortedBy { it.numero })
+        }
+        return cree
+    }
+
+    suspend fun majEcran(id: String, ecran: Ecran): Audit? = modifie(id) { audit ->
+        audit.copy(ecrans = audit.ecrans.map { if (it.id == ecran.id) ecran else it })
+    }
+
+    /**
+     * Retire un emplacement d'écran ; ses clichés redeviennent des photos de site.
+     *
+     * Les supprimer avec lui ferait disparaître des fichiers que le technicien a pris
+     * la peine d'aller chercher — et le mauvais écran est vite effacé.
+     */
+    suspend fun supprimeEcran(id: String, idEcran: String): Audit? = modifie(id) { audit ->
+        audit.copy(
+            ecrans = audit.ecrans.filterNot { it.id == idEcran },
+            photos = audit.photos.map {
+                if (it.ecranId == idEcran) it.copy(ecranId = null, exigence = null) else it
+            },
+        )
+    }
+
+    suspend fun majFicheSite(
+        id: String,
+        interlocuteur: String,
+        contraintes: String,
+        nacelle: Boolean?,
+        hauteurPrerequis: String,
+        dureeInstallation: String,
+    ): Audit? = modifie(id) { audit ->
+        audit.copy(
+            interlocuteur = interlocuteur.trim(),
+            contraintes = contraintes.trim(),
+            nacelle = nacelle,
+            hauteurPrerequis = hauteurPrerequis.trim(),
+            dureeInstallation = dureeInstallation.trim(),
+        )
+    }
+
+    /** Rattache un cliché à un écran et à la case du PV qu'il honore. */
+    suspend fun majRattachement(
+        id: String,
+        uri: String,
+        ecranId: String?,
+        exigence: String?,
+    ): Audit? = modifie(id) { audit ->
+        audit.copy(
+            photos = audit.photos.map {
+                if (it.uri == uri) it.copy(ecranId = ecranId, exigence = exigence) else it
+            },
+        )
+    }
+
     suspend fun majAnnotations(id: String, uri: String, formes: List<Forme>): Audit? =
         modifie(id) { audit ->
             audit.copy(

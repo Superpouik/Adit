@@ -17,18 +17,27 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import fr.pouik.audit.donnees.Audit
+import fr.pouik.audit.donnees.Ecran as EcranReleve
+import fr.pouik.audit.donnees.Exigence
+import fr.pouik.audit.donnees.cartouche
 import fr.pouik.audit.donnees.cheminRelatif
+import fr.pouik.audit.donnees.ecran
+import fr.pouik.audit.donnees.exigences
+import fr.pouik.audit.donnees.photosDe
 import fr.pouik.audit.photos.copie
 import fr.pouik.audit.photos.partagePhotos
 import fr.pouik.audit.photos.partageRecapitulatif
 import fr.pouik.audit.photos.partageUnePhoto
+import fr.pouik.audit.ui.Cible
 import fr.pouik.audit.ui.Confirmation
 import fr.pouik.audit.ui.EcranAudit
 import fr.pouik.audit.ui.EcranAudits
-import fr.pouik.audit.ui.EcranEditeur
 import fr.pouik.audit.ui.EcranCamera
+import fr.pouik.audit.ui.EcranEditeur
 import fr.pouik.audit.ui.EcranPhoto
 import fr.pouik.audit.ui.FeuilleAudit
+import fr.pouik.audit.ui.FeuilleEcran
+import fr.pouik.audit.ui.FeuilleSite
 import fr.pouik.audit.ui.ModeleVue
 import fr.pouik.audit.ui.ThemeAudit
 
@@ -45,18 +54,19 @@ class MainActivity : ComponentActivity() {
 }
 
 /**
- * Les quatre destinations de l'app.
+ * Les cinq destinations de l'app.
  *
- * Navigation tenue à la main plutôt qu'avec navigation-compose : quatre écrans,
- * dont deux portent un identifiant, ne valent pas une bibliothèque et son graphe
- * de routes à sérialiser.
+ * Navigation tenue à la main plutôt qu'avec navigation-compose : cinq écrans, dont
+ * quatre portent un identifiant, ne valent pas une bibliothèque et son graphe de routes
+ * à sérialiser.
  */
-private sealed interface Ecran {
-    data object Liste : Ecran
-    data class Detail(val id: String) : Ecran
-    data class Camera(val id: String) : Ecran
-    data class Visionneuse(val id: String, val uri: String) : Ecran
-    data class Editeur(val id: String, val uri: String) : Ecran
+private sealed interface Vue {
+    data object Liste : Vue
+    data class Detail(val id: String) : Vue
+    /** [ecranId] dit où rangera les clichés : un emplacement, ou le site entier. */
+    data class Camera(val id: String, val ecranId: String?) : Vue
+    data class Visionneuse(val id: String, val uri: String) : Vue
+    data class Editeur(val id: String, val uri: String) : Vue
 }
 
 @Composable
@@ -68,9 +78,10 @@ private fun Application(modele: ModeleVue) {
     val apercu by modele.apercu.collectAsStateWithLifecycle()
     val enregistreAnnotations by modele.enregistreAnnotations.collectAsStateWithLifecycle()
 
-    var ecran by remember { mutableStateOf<Ecran>(Ecran.Liste) }
-    // null = fermée, Pair(null) = création, Pair(audit) = modification
+    var vue by remember { mutableStateOf<Vue>(Vue.Liste) }
     var fiche by remember { mutableStateOf<Pair<Audit?, Boolean>?>(null) }
+    var ficheEcran by remember { mutableStateOf<String?>(null) }
+    var ficheSite by remember { mutableStateOf(false) }
     var aSupprimer by remember { mutableStateOf<Audit?>(null) }
 
     message?.let { texte ->
@@ -80,50 +91,60 @@ private fun Application(modele: ModeleVue) {
         }
     }
 
-    // L'audit affiché est relu dans la liste à chaque recomposition : garder la
-    // fiche de côté dans l'état de navigation la figerait, et la grille ne
-    // montrerait plus les photos prises depuis.
-    val ouvert = (ecran as? Ecran.Detail)?.id
-        ?: (ecran as? Ecran.Camera)?.id
-        ?: (ecran as? Ecran.Visionneuse)?.id
-        ?: (ecran as? Ecran.Editeur)?.id
+    // L'audit affiché est relu dans la liste à chaque recomposition : garder la fiche
+    // de côté dans l'état de navigation la figerait, et la grille ne montrerait plus
+    // les photos prises depuis.
+    val ouvert = when (val v = vue) {
+        is Vue.Detail -> v.id
+        is Vue.Camera -> v.id
+        is Vue.Visionneuse -> v.id
+        is Vue.Editeur -> v.id
+        Vue.Liste -> null
+    }
     val audit = audits.firstOrNull { it.id == ouvert }
 
-    // Un audit supprimé pendant qu'on le regarde (ou un identifiant devenu
-    // caduc) ramène à la liste au lieu d'afficher un écran vide.
+    // Un audit supprimé pendant qu'on le regarde (ou un identifiant devenu caduc)
+    // ramène à la liste au lieu d'afficher un écran vide.
     LaunchedEffect(ouvert, audit) {
-        if (ouvert != null && audit == null) ecran = Ecran.Liste
+        if (ouvert != null && audit == null) vue = Vue.Liste
     }
 
-    BackHandler(enabled = ecran != Ecran.Liste) {
-        ecran = when (val e = ecran) {
-            is Ecran.Visionneuse -> Ecran.Detail(e.id)
-            is Ecran.Camera -> Ecran.Detail(e.id)
+    BackHandler(enabled = vue != Vue.Liste) {
+        vue = when (val v = vue) {
+            is Vue.Visionneuse -> Vue.Detail(v.id)
+            is Vue.Camera -> Vue.Detail(v.id)
             // Le retour depuis l'éditeur ramène à la photo qu'on vient d'annoter, pas
             // à la grille : on veut vérifier son travail en grand.
-            is Ecran.Editeur -> Ecran.Visionneuse(e.id, e.uri)
-            else -> Ecran.Liste
+            is Vue.Editeur -> Vue.Visionneuse(v.id, v.uri)
+            else -> Vue.Liste
         }
     }
 
-    when (val e = ecran) {
-        is Ecran.Liste -> EcranAudits(
+    when (val v = vue) {
+        is Vue.Liste -> EcranAudits(
             audits = audits,
             pret = pret,
-            onOuvre = { ecran = Ecran.Detail(it.id) },
+            onOuvre = { vue = Vue.Detail(it.id) },
             onNouveau = { fiche = null to true },
             onEdite = { fiche = it to true },
             onRenommeDossier = { modele.renommeDossier(it.id) },
             onSupprime = { aSupprimer = it },
         )
 
-        is Ecran.Detail -> audit?.let { a ->
+        is Vue.Detail -> audit?.let { a ->
             EcranAudit(
                 audit = a,
-                onRetour = { ecran = Ecran.Liste },
-                onPhotographie = { ecran = Ecran.Camera(a.id) },
-                onOuvrePhoto = { ecran = Ecran.Visionneuse(a.id, it.uri) },
+                onRetour = { vue = Vue.Liste },
+                onPhotographie = { ecranId -> vue = Vue.Camera(a.id, ecranId) },
+                onOuvrePhoto = { vue = Vue.Visionneuse(a.id, it.uri) },
                 onEditeFiche = { fiche = a to true },
+                onFicheSite = { ficheSite = true },
+                onEditeEcran = { ficheEcran = it.id },
+                onAjouteEcran = {
+                    // On enchaîne sur la fiche : un écran sans taille ni support ne
+                    // sert à rien, et c'est devant l'emplacement qu'on les connaît.
+                    modele.ajouteEcran(a.id) { nouveau -> ficheEcran = nouveau.id }
+                },
                 onPartagePhotos = {
                     if (!partagePhotos(contexte, a)) {
                         Toast.makeText(contexte, "Rien à envoyer", Toast.LENGTH_SHORT).show()
@@ -141,49 +162,66 @@ private fun Application(modele: ModeleVue) {
             )
         }
 
-        is Ecran.Camera -> audit?.let { a ->
+        is Vue.Camera -> audit?.let { a ->
+            val cibles = remember(a.ecrans) {
+                listOf(Cible(null, "Le site")) +
+                    a.ecrans.sortedBy { it.numero }.map { Cible(it.id, "Écran ${it.numero}") }
+            }
+            val couvertes = remember(a, v.ecranId) {
+                a.photosDe(v.ecranId).mapNotNull { it.exigence }.toSet()
+            }
+            val attendues = remember(a.ecrans, v.ecranId) {
+                a.ecran(v.ecranId)?.exigences() ?: Exigence.pourSite()
+            }
             EcranCamera(
                 nomAudit = a.nom,
-                prepare = { modele.prepareCliche(a.id) },
+                cibles = cibles,
+                cibleActive = v.ecranId,
+                onCible = { vue = Vue.Camera(a.id, it) },
+                exigences = attendues,
+                couvertes = couvertes,
+                prepare = { modele.prepareCliche(a.id, v.ecranId) },
                 enregistre = { cliche, uri, ensuite ->
-                    modele.clicheEnregistre(a.id, cliche, uri, ensuite)
+                    modele.clicheEnregistre(a.id, cliche, uri, v.ecranId, ensuite)
                 },
                 onLegende = { photo, legende -> modele.majLegende(a.id, photo, legende) },
+                onExigence = { photo, cle -> modele.rattache(a.id, photo, v.ecranId, cle) },
                 onEchec = modele::echecCapture,
-                onRetour = { ecran = Ecran.Detail(a.id) },
+                onRetour = { vue = Vue.Detail(a.id) },
             )
         }
 
-        is Ecran.Visionneuse -> audit?.let { a ->
+        is Vue.Visionneuse -> audit?.let { a ->
             EcranPhoto(
                 photos = a.photos.sortedBy { it.numero },
-                depart = e.uri,
-                onRetour = { ecran = Ecran.Detail(a.id) },
+                depart = v.uri,
+                onRetour = { vue = Vue.Detail(a.id) },
                 onLegende = { photo, legende -> modele.majLegende(a.id, photo, legende) },
                 onSupprime = { modele.supprimePhoto(a.id, it) },
                 onPartage = { partageUnePhoto(contexte, it.uri, it.legende) },
-                onAnnote = { ecran = Ecran.Editeur(a.id, it.uri) },
+                onAnnote = { vue = Vue.Editeur(a.id, it.uri) },
             )
         }
 
-        is Ecran.Editeur -> {
-            val photo = audit?.photos?.firstOrNull { it.uri == e.uri }
-            if (photo == null) {
-                LaunchedEffect(e.uri) { ecran = Ecran.Liste }
+        is Vue.Editeur -> {
+            val photo = audit?.photos?.firstOrNull { it.uri == v.uri }
+            if (audit == null || photo == null) {
+                LaunchedEffect(v.uri) { vue = Vue.Liste }
             } else {
                 // Le chargement est lancé une fois par photo ouverte : relire le fichier
                 // à chaque recomposition relirait plusieurs mégaoctets pour rien.
-                LaunchedEffect(e.uri) { modele.ouvreEditeur(e.id, photo) }
-                DisposableEffect(e.uri) { onDispose { modele.fermeEditeur() } }
+                LaunchedEffect(v.uri) { modele.ouvreEditeur(v.id, photo) }
+                DisposableEffect(v.uri) { onDispose { modele.fermeEditeur() } }
                 EcranEditeur(
                     titre = photo.legende.ifBlank { photo.fichier },
                     image = apercu,
                     initiales = photo.annotations,
+                    cartouche = cartouche(audit, audit.ecran(photo.ecranId)),
                     enregistrement = enregistreAnnotations,
-                    onRetour = { ecran = Ecran.Visionneuse(e.id, e.uri) },
+                    onRetour = { vue = Vue.Visionneuse(v.id, v.uri) },
                     onEnregistre = { formes ->
-                        modele.enregistreAnnotations(e.id, photo, formes) {
-                            ecran = Ecran.Visionneuse(e.id, e.uri)
+                        modele.enregistreAnnotations(v.id, photo, formes) {
+                            vue = Vue.Visionneuse(v.id, v.uri)
                         }
                     },
                 )
@@ -199,13 +237,44 @@ private fun Application(modele: ModeleVue) {
             onValide = { nom, lieu, notes ->
                 fiche = null
                 if (initial == null) {
-                    // Créer puis enchaîner sur l'appareil photo : on crée un
-                    // audit parce qu'on est devant le site, pas pour remplir un
-                    // catalogue.
-                    modele.cree(nom, lieu, notes) { cree -> ecran = Ecran.Camera(cree.id) }
+                    // Créer puis enchaîner sur l'appareil photo : on crée un audit
+                    // parce qu'on est devant le site, pas pour remplir un catalogue.
+                    modele.cree(nom, lieu, notes) { cree -> vue = Vue.Camera(cree.id, null) }
                 } else {
                     modele.majFiche(initial.id, nom, lieu, notes)
                 }
+            },
+        )
+    }
+
+    ficheEcran?.let { idEcran ->
+        val courant: EcranReleve? = audit?.ecran(idEcran)
+        if (audit == null || courant == null) {
+            LaunchedEffect(idEcran) { ficheEcran = null }
+        } else {
+            FeuilleEcran(
+                audit = audit,
+                initial = courant,
+                onFerme = { ficheEcran = null },
+                onEnregistre = {
+                    ficheEcran = null
+                    modele.majEcran(audit.id, it)
+                },
+                onSupprime = {
+                    ficheEcran = null
+                    modele.supprimeEcran(audit.id, it.id)
+                },
+            )
+        }
+    }
+
+    if (ficheSite && audit != null) {
+        FeuilleSite(
+            audit = audit,
+            onFerme = { ficheSite = false },
+            onEnregistre = { interlocuteur, contraintes, nacelle, hauteur, duree ->
+                ficheSite = false
+                modele.majFicheSite(audit.id, interlocuteur, contraintes, nacelle, hauteur, duree)
             },
         )
     }

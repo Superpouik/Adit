@@ -8,9 +8,12 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import fr.pouik.audit.donnees.Audit
 import fr.pouik.audit.donnees.Depot
+import fr.pouik.audit.donnees.Ecran
+import fr.pouik.audit.donnees.Exigence
 import fr.pouik.audit.donnees.Forme
 import fr.pouik.audit.donnees.Photo
 import fr.pouik.audit.donnees.cle
+import fr.pouik.audit.donnees.ecran
 import fr.pouik.audit.donnees.dossierLibre
 import fr.pouik.audit.donnees.nomPhoto
 import fr.pouik.audit.photos.Mediatheque
@@ -204,15 +207,21 @@ class ModeleVue(application: Application) : AndroidViewModel(application) {
      * bien qu'une capture ratée brûle un numéro — sans conséquence — là où deux
      * captures simultanées produiraient deux fichiers homonymes.
      */
-    suspend fun prepareCliche(id: String): Cliche? {
+    suspend fun prepareCliche(id: String, ecranId: String?): Cliche? {
         val audit = depot.audit(id) ?: return null
         val numero = depot.reserveNumero(id) ?: return null
-        val fichier = nomPhoto(audit.dossier, numero)
+        val fichier = nomPhoto(audit.dossier, numero, ecran = audit.ecran(ecranId)?.numero)
         return Cliche(numero, fichier, mediatheque.valeurs(audit.dossier, fichier))
     }
 
     /** Enregistre un cliché que CameraX vient d'écrire. */
-    fun clicheEnregistre(id: String, cliche: Cliche, uri: Uri, ensuite: (Photo) -> Unit = {}) {
+    fun clicheEnregistre(
+        id: String,
+        cliche: Cliche,
+        uri: Uri,
+        ecranId: String?,
+        ensuite: (Photo) -> Unit = {},
+    ) {
         viewModelScope.launch {
             // Le nom demandé n'est pas toujours celui retenu : MediaStore
             // suffixe en cas de collision, et c'est son nom qu'on doit afficher.
@@ -222,10 +231,97 @@ class ModeleVue(application: Application) : AndroidViewModel(application) {
                 fichier = reel,
                 numero = cliche.numero,
                 priseLe = System.currentTimeMillis(),
+                ecranId = ecranId,
             )
             depot.ajoutePhoto(id, photo)
             ensuite(photo)
         }
+    }
+
+    // ---- Emplacements d'écran et fiche du site ------------------------------------
+
+    fun ajouteEcran(id: String, ensuite: (Ecran) -> Unit = {}) {
+        viewModelScope.launch {
+            val ecran = depot.ajouteEcran(id)
+            if (ecran == null) {
+                _message.value = "Deux écrans au maximum par site"
+            } else {
+                ensuite(ecran)
+            }
+        }
+    }
+
+    fun majEcran(id: String, ecran: Ecran) {
+        viewModelScope.launch {
+            depot.majEcran(id, ecran)
+            // Le support décide du nom de fichier (le cartouche en dépend) et de la
+            // liste des photos exigées : les noms déjà posés doivent suivre.
+            realigneNoms(id, ecran.id)
+        }
+    }
+
+    fun supprimeEcran(id: String, idEcran: String) {
+        viewModelScope.launch {
+            depot.supprimeEcran(id, idEcran)
+            // Les clichés redeviennent des photos de site : leur préfixe « E1 » n'a
+            // plus de sens, et un dossier qui ment sur son contenu est pire que pas
+            // de préfixe du tout.
+            realigneNoms(id, null)
+        }
+    }
+
+    fun majFicheSite(
+        id: String,
+        interlocuteur: String,
+        contraintes: String,
+        nacelle: Boolean?,
+        hauteurPrerequis: String,
+        dureeInstallation: String,
+    ) {
+        viewModelScope.launch {
+            depot.majFicheSite(id, interlocuteur, contraintes, nacelle, hauteurPrerequis, dureeInstallation)
+        }
+    }
+
+    /**
+     * Rattache un cliché à un écran et à la case du PV qu'il honore, puis renomme le
+     * fichier en conséquence.
+     */
+    fun rattache(id: String, photo: Photo, ecranId: String?, exigence: String?) {
+        viewModelScope.launch {
+            depot.majRattachement(id, photo.uri, ecranId, exigence)
+            renomme(id, photo.uri)
+        }
+    }
+
+    /**
+     * Réécrit le nom de fichier d'un cliché d'après ce qu'on sait de lui.
+     *
+     * Le nom porte le numéro d'écran, la case du PV et la légende : c'est tout ce que
+     * le destinataire aura pour s'y retrouver dans une pièce jointe, une fois le mail
+     * ouvert loin de l'application.
+     */
+    private suspend fun renomme(id: String, uri: String) {
+        val audit = depot.audit(id) ?: return
+        val photo = audit.photos.firstOrNull { it.uri == uri } ?: return
+        val role = Exigence.parCle(photo.exigence)?.libelle.orEmpty()
+        val description = listOf(role, photo.legende).filter { it.isNotBlank() }.joinToString(" ")
+        val voulu = nomPhoto(
+            dossier = audit.dossier,
+            numero = photo.numero,
+            legende = description,
+            ecran = audit.ecran(photo.ecranId)?.numero,
+        )
+        if (voulu == photo.fichier) return
+        val obtenu = mediatheque.renomme(Uri.parse(photo.uri), voulu) ?: photo.fichier
+        depot.majPhoto(id, photo.uri, photo.legende, obtenu)
+    }
+
+    private suspend fun realigneNoms(id: String, idEcran: String?) {
+        val audit = depot.audit(id) ?: return
+        audit.photos
+            .filter { idEcran == null || it.ecranId == idEcran }
+            .forEach { renomme(id, it.uri) }
     }
 
     fun echecCapture(raison: String) {
@@ -238,14 +334,8 @@ class ModeleVue(application: Application) : AndroidViewModel(application) {
      */
     fun majLegende(id: String, photo: Photo, legende: String) {
         viewModelScope.launch {
-            val audit = depot.audit(id) ?: return@launch
-            val voulu = nomPhoto(audit.dossier, photo.numero, legende)
-            val obtenu = if (voulu == photo.fichier) {
-                photo.fichier
-            } else {
-                mediatheque.renomme(Uri.parse(photo.uri), voulu) ?: photo.fichier
-            }
-            depot.majPhoto(id, photo.uri, legende, obtenu)
+            depot.majPhoto(id, photo.uri, legende, photo.fichier)
+            renomme(id, photo.uri)
         }
     }
 

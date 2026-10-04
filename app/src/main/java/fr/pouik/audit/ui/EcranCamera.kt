@@ -13,6 +13,8 @@ import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -57,6 +59,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil.compose.AsyncImage
 import fr.pouik.audit.R
+import fr.pouik.audit.donnees.Exigence
 import fr.pouik.audit.donnees.Photo
 import kotlinx.coroutines.launch
 
@@ -75,9 +78,18 @@ import kotlinx.coroutines.launch
 @Composable
 fun EcranCamera(
     nomAudit: String,
+    /** Les destinations possibles : le site, puis chaque écran relevé. */
+    cibles: List<Cible>,
+    cibleActive: String?,
+    onCible: (String?) -> Unit,
+    /** Les cases du PV que la cible courante réclame, dans un ordre qui ne bouge pas. */
+    exigences: List<Exigence>,
+    /** Celles qu'un cliché précédent honore déjà. */
+    couvertes: Set<String>,
     prepare: suspend () -> Cliche?,
     enregistre: (Cliche, Uri, (Photo) -> Unit) -> Unit,
     onLegende: (Photo, String) -> Unit,
+    onExigence: (Photo, String?) -> Unit,
     onEchec: (String) -> Unit,
     onRetour: () -> Unit,
 ) {
@@ -124,6 +136,7 @@ fun EcranCamera(
     var enCours by remember { mutableStateOf(false) }
     var derniere by remember { mutableStateOf<Photo?>(null) }
     var legende by remember { mutableStateOf("") }
+    var caseCochee by remember { mutableStateOf<String?>(null) }
 
     /** Valide la légende en attente, s'il y en a une à valider. */
     fun valideLegende() {
@@ -137,6 +150,9 @@ fun EcranCamera(
         if (enCours) return
         enCours = true
         valideLegende()
+        // Une case cochée vaut pour le cliché qu'on vient de prendre, pas pour le
+        // suivant : on repart à blanc à chaque déclenchement.
+        caseCochee = null
         portee.launch {
             val cliche = prepare()
             if (cliche == null) {
@@ -259,6 +275,28 @@ fun EcranCamera(
             }
         }
 
+        // Où rangera-t-on les clichés suivants : le site, ou l'un des deux écrans.
+        // Posé en haut, sous le nom du magasin, parce qu'on le change en changeant
+        // d'endroit dans le magasin — pas à chaque photo.
+        if (cibles.size > 1) {
+            Row(
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(top = 56.dp)
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                cibles.forEach { cible ->
+                    PuceSombre(cible.libelle, cible.ecranId == cibleActive) {
+                        onCible(cible.ecranId)
+                    }
+                }
+            }
+        }
+
         Column(
             Modifier
                 .align(Alignment.BottomCenter)
@@ -272,6 +310,40 @@ fun EcranCamera(
             // Le champ légende ne s'affiche qu'après une prise : avant, il n'a
             // rien à légender et volerait de la place au viseur.
             derniere?.let { photo ->
+                // Cocher la case du PV ici, et pas plus tard : c'est le seul instant où
+                // l'on sait avec certitude ce que montre le cliché. Le nom du fichier
+                // s'en trouve complété dans la foulée.
+                if (exigences.isNotEmpty()) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .background(Color.Black.copy(alpha = 0.6f))
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        exigences.forEach { exigence ->
+                            // Le crochet dit ce qui est déjà fait sans changer l'ordre
+                            // des puces. Les trier par ce qui manque semblait plus
+                            // malin — jusqu'à ce qu'en rafale les puces s'échangent
+                            // sous le doigt dès qu'on venait d'en cocher une, et qu'on
+                            // marque deux clichés de suite comme la même chose.
+                            PuceSombre(
+                                libelle = if (exigence.cle in couvertes) {
+                                    "✓ ${exigence.libelle}"
+                                } else {
+                                    exigence.libelle
+                                },
+                                choisie = caseCochee == exigence.cle,
+                            ) {
+                                val nouvelle = if (caseCochee == exigence.cle) null else exigence.cle
+                                caseCochee = nouvelle
+                                onExigence(photo, nouvelle)
+                            }
+                        }
+                    }
+                }
                 Row(
                     Modifier
                         .fillMaxWidth()
@@ -399,4 +471,27 @@ private fun AutorisationManquante(refuse: Boolean, onRetour: () -> Unit, onRedem
             modifier = Modifier.clickable(onClick = onRetour).padding(8.dp),
         )
     }
+}
+
+/** Une destination de capture : le site entier, ou l'un des écrans relevés. */
+data class Cible(val ecranId: String?, val libelle: String)
+
+/**
+ * Une puce lisible sur le viseur.
+ *
+ * Les puces de Material sont pensées pour un fond de thème ; posées sur une image de
+ * rayon en plein soleil, elles disparaissent. D'où ces couleurs tenues à la main.
+ */
+@Composable
+private fun PuceSombre(libelle: String, choisie: Boolean, onClic: () -> Unit) {
+    Text(
+        libelle,
+        color = if (choisie) Color.Black else Color.White,
+        style = MaterialTheme.typography.labelLarge,
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (choisie) Color.White else Color.Black.copy(alpha = 0.55f))
+            .clickable(onClick = onClic)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+    )
 }

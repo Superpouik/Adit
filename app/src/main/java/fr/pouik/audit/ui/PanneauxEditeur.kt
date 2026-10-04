@@ -116,6 +116,8 @@ fun PanneauReglages(
     opacite: Float,
     epaisseur: Float,
     force: Float,
+    cartouche: String,
+    onCartouche: () -> Unit,
     onCouleur: (Long) -> Unit,
     onOpacite: (Float) -> Unit,
     onEpaisseur: (Float) -> Unit,
@@ -133,6 +135,19 @@ fun PanneauReglages(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        // Le cartouche d'abord : c'est l'annotation que le client exige sur chaque
+        // photo d'emplacement, donc le geste le plus répété de l'écran.
+        if (cartouche.isNotBlank()) {
+            OutlinedButton(onClick = onCartouche, modifier = Modifier.fillMaxWidth()) {
+                Text("Poser le cartouche")
+            }
+            Text(
+                cartouche,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
         Text(
             if (selection == null) "Prochain tracé" else "Forme sélectionnée",
             style = MaterialTheme.typography.titleSmall,
@@ -189,6 +204,8 @@ fun ReglagesCompacts(
     opacite: Float,
     epaisseur: Float,
     force: Float,
+    cartouche: String,
+    onCartouche: () -> Unit,
     onCouleur: (Long) -> Unit,
     onOpacite: (Float) -> Unit,
     onEpaisseur: (Float) -> Unit,
@@ -205,6 +222,9 @@ fun ReglagesCompacts(
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            if (cartouche.isNotBlank() && selection == null) {
+                TextButton(onClick = onCartouche) { Text("Cartouche") }
+            }
             if (selection !is Forme.Flou) {
                 Palette(couleur, enGrille = false, onChoisit = onCouleur, modifier = Modifier.weight(1f))
             } else {
