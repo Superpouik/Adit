@@ -18,8 +18,8 @@ android {
         // ce projet sur les autres et donne java.time natif.
         minSdk = 30
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1"
+        versionCode = 2
+        versionName = "0.2"
     }
 
     // Clé de signature locale, la même que sur les autres projets maison :
@@ -94,6 +94,11 @@ dependencies {
     // Vignettes : décoder trente JPEG de 4000 px à la main dans un LazyGrid,
     // c'est réécrire un cache d'images. Coil le fait mieux.
     implementation(libs.coil.compose)
+
+    // Une photo prise en paysage est écrite droite dans le fichier avec une
+    // consigne de rotation à côté : sans la lire, l'éditeur annoterait une image
+    // couchée.
+    implementation(libs.exifinterface)
 
     // Le catalogue des audits est un JSON dans filesDir : quelques dizaines
     // de fiches, Room n'apporterait qu'un processeur d'annotations.

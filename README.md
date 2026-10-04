@@ -12,6 +12,10 @@ se distingue.
 |---|---|---|
 | ![fiche](docs/fiche.png) | ![caméra](docs/camera.png) | ![grille](docs/grille.png) |
 
+L'éditeur d'annotations, en écran déplié :
+
+![éditeur](docs/editeur.png)
+
 ## Ce qu'elle fait
 
 - Un **audit par site** : nom, ville ou adresse, notes libres. Créé en trois secondes,
@@ -22,7 +26,23 @@ se distingue.
   `Lidl-Vitrolles-003-prise-elec.jpg` se comprend sans l'app.
 - Un **vrai dossier** par audit, dans `Pictures/Audits/<site>` : visible en USB, dans
   l'explorateur de fichiers, et dans la galerie sous forme d'albums séparés.
+- Un **éditeur d'annotations** : rectangle plein ou en contour, ellipse, flèche, crayon,
+  texte sur cartouche, et floutage pour masquer un visage ou un nom avant d'envoyer.
+  Tout se déplace, se redimensionne et se recolore après coup.
 - L'**envoi** des photos ou d'un récapitulatif texte, par mail ou messagerie.
+
+## Annoter
+
+Depuis une photo ouverte, le crayon de la barre du haut. En écran déplié, les outils
+passent en rail à gauche et les réglages à droite, la photo gardant le centre ; replié,
+la même matière se replie en colonne sous l'image.
+
+![éditeur replié](docs/editeur-replie.png)
+
+Ce qui sort dans le dossier de l'audit est la photo annotations comprises — personne
+d'autre ne lira notre JSON :
+
+![photo annotée](docs/exporte.png)
 
 ## Les décisions qui ne se devinent pas à la lecture du code
 
@@ -39,6 +59,30 @@ même dossier, et MediaStore trancherait à notre place en suffixant « (1) ».
 
 **Numérotation sur trois chiffres.** Pour que le tri alphabétique d'un explorateur de
 fichiers soit l'ordre de la visite — c'est ce qui fait le compte-rendu.
+
+**Annoter n'écrase pas l'original.** Le fichier visible porte les annotations gravées,
+mais l'original part dans le stockage privé de l'app à la première retouche, et c'est
+lui qu'on réannote à chaque passage. Redessiner les formes sur une image déjà annotée
+les empilerait, et une faute de frappe deviendrait définitive. Le prix est connu : une
+photo retouchée occupe deux fois sa place.
+
+**Les annotations sont en coordonnées normalisées**, de 0 à 1 par rapport à l'image.
+Gardées en pixels, elles se décaleraient au premier changement d'écran — ouvrir déplié
+ce qu'on a annoté plié suffirait.
+
+**Un seul moteur de rendu.** L'aperçu de l'éditeur et le JPEG exporté passent par le
+même code de dessin, sur un `android.graphics.Canvas` dans les deux cas. Deux moteurs
+finiraient par diverger d'une police ici et d'un demi-pixel là, et ce qu'on enverrait au
+client ne serait plus ce qu'on avait vu.
+
+**L'orientation EXIF est appliquée avant d'annoter.** L'appareil photo écrit l'image
+telle que la voit le capteur et note la rotation à côté ; sans la lire, une photo prise
+en paysage s'annoterait couchée. Vérifié sur l'émulateur : original 724×960 avec
+orientation 6, export 960×724 et annotations à l'endroit.
+
+**Le flou est un sous-échantillonnage.** `RenderEffect` n'existe qu'à partir d'Android
+12 et RenderScript est retiré ; réduire la zone puis la réétirer en filtré marche
+partout et donne exactement ce qu'on cherche — un visage devenu illisible.
 
 **Une seule permission : l'appareil photo.** Depuis Android 10, une app écrit dans les
 collections partagées et relit ensuite ce qu'elle y a écrit, sans rien demander.
@@ -85,11 +129,17 @@ alors sur un message vide.
 ./gradlew test
 ```
 
-24 tests JVM sur ce qui ne se contrôle pas à l'œil : la transcription des accents et
-des caractères interdits dans les noms de dossiers, l'unicité des numéros de clichés
-à travers un redémarrage, la relecture du catalogue, le récapitulatif.
+43 tests JVM sur ce qui ne se contrôle pas à l'œil : la transcription des accents et
+des caractères interdits dans les noms de dossiers, l'unicité des numéros de clichés à
+travers un redémarrage, la relecture du catalogue, le récapitulatif, la géométrie des
+annotations (rectangle tracé à l'envers, opacité changée sans toucher à la teinte, trait
+mis à l'échelle sans se déplacer) et la relecture des six types de formes en JSON
+polymorphe.
 
-Le reste a été vérifié sur un émulateur Android 37 : création d'un audit, octroi de la
-permission, prise de vue en rafale, légende, renommage du fichier par la légende,
-déplacement d'un dossier complet et suppression — fichiers et entrées MediaStore
-contrôlés à chaque étape.
+Le reste a été vérifié sur émulateur Android 37, plié (1248×1972) et déplié
+(2448×1848) : création d'un audit, octroi de la permission, prise de vue en rafale,
+légende, renommage du fichier par la légende, déplacement d'un dossier complet,
+suppression, puis annotation complète — rectangle, cartouche de texte, flou,
+redimensionnement à la poignée, enregistrement, ré-ouverture de l'éditeur pour vérifier
+que rien ne s'empile. Fichiers, entrées MediaStore et catalogue contrôlés à chaque
+étape.

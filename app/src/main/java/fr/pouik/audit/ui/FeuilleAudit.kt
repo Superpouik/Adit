@@ -47,15 +47,21 @@ fun FeuilleAudit(
     val etat = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     ModalBottomSheet(onDismissRequest = onFerme, sheetState = etat) {
+        // Le bouton de validation est sorti de la zone défilante et collé en bas :
+        // clavier ouvert, l'écran déplié n'affichait plus que les champs, et
+        // « Créer et photographier » se retrouvait hors de l'écran — il fallait
+        // deviner qu'il existait et faire défiler pour l'atteindre. `imePadding`
+        // remonte l'ensemble, `weight` donne au bloc des champs ce qui reste.
         Column(
             Modifier
-                // Sans ça, le clavier recouvre « Créer et photographier » : la
-                // feuille ne remonte pas d'elle-même, adjustResize ne vaut que
-                // pour la fenêtre, pas pour ce qui est dessiné par-dessus.
                 .imePadding()
-                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 28.dp),
+        ) {
+        Column(
+            Modifier
+                .weight(1f, fill = false)
+                .verticalScroll(rememberScrollState()),
         ) {
             Text(
                 if (initial == null) "Nouvel audit" else "Modifier la fiche",
@@ -94,6 +100,8 @@ fun FeuilleAudit(
                 ),
                 modifier = Modifier.fillMaxWidth(),
             )
+        }
+
             EspaceV(20)
 
             Button(

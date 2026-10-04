@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -38,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -188,7 +190,7 @@ private fun CasePhoto(photo: Photo, onOuvre: () -> Unit) {
             .clickable(onClick = onOuvre),
     ) {
         AsyncImage(
-            model = photo.uri,
+            model = requeteImage(LocalContext.current, photo),
             contentDescription = photo.legende.ifBlank { "Photo ${photo.numero}" },
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
@@ -203,6 +205,18 @@ private fun CasePhoto(photo: Photo, onOuvre: () -> Unit) {
                 .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(4.dp))
                 .padding(horizontal = 5.dp, vertical = 2.dp),
         )
+        // Un point sur les clichés déjà annotés : en relisant trente photos, savoir
+        // lesquelles sont traitées évite de refaire deux fois le même travail.
+        if (photo.annotations.isNotEmpty()) {
+            Box(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(6.dp)
+                    .size(10.dp)
+                    .clip(RoundedCornerShape(5.dp))
+                    .background(MaterialTheme.colorScheme.primary),
+            )
+        }
         if (photo.legende.isNotBlank()) {
             Text(
                 photo.legende,

@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -40,6 +41,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -62,6 +64,7 @@ fun EcranPhoto(
     onLegende: (Photo, String) -> Unit,
     onSupprime: (Photo) -> Unit,
     onPartage: (Photo) -> Unit,
+    onAnnote: (Photo) -> Unit,
 ) {
     if (photos.isEmpty()) {
         // La dernière photo vient d'être supprimée : il n'y a plus rien à voir.
@@ -80,7 +83,7 @@ fun EcranPhoto(
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         HorizontalPager(state = etat, modifier = Modifier.fillMaxSize()) { page ->
-            PhotoZoomable(photos[page].uri)
+            PhotoZoomable(photos[page])
         }
 
         Row(
@@ -111,6 +114,9 @@ fun EcranPhoto(
                     color = Color.White.copy(alpha = 0.7f),
                     style = MaterialTheme.typography.bodySmall,
                 )
+            }
+            IconButton(onClick = { onAnnote(courante) }) {
+                Icon(Icons.Default.Edit, contentDescription = "Annoter", tint = Color.White)
             }
             IconButton(onClick = { onPartage(courante) }) {
                 Icon(Icons.Default.Share, contentDescription = "Envoyer", tint = Color.White)
@@ -180,7 +186,8 @@ fun EcranPhoto(
  * se ramène d'un double-tap.
  */
 @Composable
-private fun PhotoZoomable(uri: String) {
+private fun PhotoZoomable(photo: Photo) {
+    val uri = photo.uri
     var echelle by remember(uri) { mutableFloatStateOf(1f) }
     var decalageX by remember(uri) { mutableFloatStateOf(0f) }
     var decalageY by remember(uri) { mutableFloatStateOf(0f) }
@@ -198,7 +205,7 @@ private fun PhotoZoomable(uri: String) {
 
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         AsyncImage(
-            model = uri,
+            model = requeteImage(LocalContext.current, photo),
             contentDescription = null,
             contentScale = ContentScale.Fit,
             modifier = Modifier

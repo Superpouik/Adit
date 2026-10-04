@@ -2,15 +2,20 @@ package fr.pouik.audit.ui
 
 import android.app.Application
 import android.content.ContentValues
+import android.graphics.Bitmap
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import fr.pouik.audit.donnees.Audit
 import fr.pouik.audit.donnees.Depot
+import fr.pouik.audit.donnees.Forme
 import fr.pouik.audit.donnees.Photo
+import fr.pouik.audit.donnees.cle
 import fr.pouik.audit.donnees.dossierLibre
 import fr.pouik.audit.donnees.nomPhoto
 import fr.pouik.audit.photos.Mediatheque
+import fr.pouik.audit.photos.Retouche
+import fr.pouik.audit.photos.SourceImage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,6 +28,7 @@ class ModeleVue(application: Application) : AndroidViewModel(application) {
 
     private val depot = Depot(application)
     private val mediatheque = Mediatheque(application)
+    private val retouche = Retouche(application)
 
     val audits: StateFlow<List<Audit>> = depot.audits
 
@@ -41,7 +47,85 @@ class ModeleVue(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private val _apercu = MutableStateFlow<Bitmap?>(null)
+    /** L'image chargée dans l'éditeur, en version réduite. */
+    val apercu: StateFlow<Bitmap?> = _apercu.asStateFlow()
+
+    private val _enregistreAnnotations = MutableStateFlow(false)
+    val enregistreAnnotations: StateFlow<Boolean> = _enregistreAnnotations.asStateFlow()
+
     fun audit(id: String): Audit? = depot.audit(id)
+
+    /**
+     * Prépare l'éditeur : charge l'image de travail.
+     *
+     * C'est l'original mis de côté qui sert de base dès qu'il existe, jamais le fichier
+     * visible : celui-ci porte déjà les annotations, et les redessiner par-dessus les
+     * empilerait à chaque passage.
+     */
+    fun ouvreEditeur(idAudit: String, photo: Photo) {
+        _apercu.value = null
+        viewModelScope.launch {
+            val original = retouche.original(photo.cle(idAudit))
+            val source = if (original.exists() && original.length() > 0) {
+                SourceImage.Fichier(original)
+            } else {
+                SourceImage.Entree(Uri.parse(photo.uri))
+            }
+            val image = retouche.apercu(source)
+            if (image == null) _message.value = "Image illisible"
+            _apercu.value = image
+        }
+    }
+
+    /** Libère l'aperçu : quelques dizaines de mégaoctets qui n'ont plus de raison d'être. */
+    fun fermeEditeur() {
+        _apercu.value = null
+    }
+
+    /**
+     * Grave les annotations dans le fichier et les garde en clair dans le catalogue.
+     *
+     * Une liste vide est un cas à part : elle veut dire « remets la photo d'origine ».
+     * On restaure alors le fichier et on jette l'original privé, au lieu de laisser une
+     * copie dormir indéfiniment dans le stockage de l'app.
+     */
+    fun enregistreAnnotations(
+        idAudit: String,
+        photo: Photo,
+        formes: List<Forme>,
+        ensuite: () -> Unit = {},
+    ) {
+        viewModelScope.launch {
+            _enregistreAnnotations.value = true
+            val cle = photo.cle(idAudit)
+            val uri = Uri.parse(photo.uri)
+            val original = retouche.original(cle)
+
+            val abouti = if (formes.isEmpty()) {
+                val restaure = !original.exists() || retouche.restaure(cle, uri)
+                if (restaure) retouche.oublieOriginal(cle)
+                restaure
+            } else {
+                val base = retouche.metDeCote(uri, cle)
+                if (base == null) {
+                    false
+                } else {
+                    retouche.applique(SourceImage.Fichier(base), uri, formes)
+                }
+            }
+
+            if (abouti) {
+                depot.majAnnotations(idAudit, photo.uri, formes)
+            } else {
+                // Le catalogue n'est pas touché : annoncer que c'est enregistré alors
+                // que le fichier envoyé au client ne porte rien serait le pire des cas.
+                _message.value = "Annotations non enregistrées : écriture impossible"
+            }
+            _enregistreAnnotations.value = false
+            if (abouti) ensuite()
+        }
+    }
 
     fun messageLu() {
         _message.value = null
@@ -72,6 +156,9 @@ class ModeleVue(application: Application) : AndroidViewModel(application) {
                 audit.photos.forEach { if (!mediatheque.supprime(Uri.parse(it.uri))) ratees++ }
                 if (ratees > 0) _message.value = "$ratees photo(s) n'ont pas pu être supprimées"
             }
+            // Les originaux mis de côté partent dans tous les cas : ils ne servent qu'à
+            // ré-éditer les annotations d'un audit qui n'existe plus.
+            audit.photos.forEach { retouche.oublieOriginal(it.cle(id)) }
             depot.supprime(id)
         }
     }
@@ -169,6 +256,9 @@ class ModeleVue(application: Application) : AndroidViewModel(application) {
             if (!mediatheque.supprime(Uri.parse(photo.uri))) {
                 _message.value = "Fichier non supprimé, retiré de l'audit"
             }
+            // L'original annoté dort dans le stockage privé : sans ça, supprimer une
+            // photo laisserait sa copie occuper la place pour toujours.
+            retouche.oublieOriginal(photo.cle(id))
             depot.retirePhoto(id, photo.uri)
         }
     }

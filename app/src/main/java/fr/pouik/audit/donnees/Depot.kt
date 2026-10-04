@@ -117,6 +117,19 @@ class Depot(dossier: File) {
             )
         }
 
+    suspend fun majAnnotations(id: String, uri: String, formes: List<Forme>): Audit? =
+        modifie(id) { audit ->
+            audit.copy(
+                photos = audit.photos.map {
+                    if (it.uri == uri) {
+                        it.copy(annotations = formes, version = it.version + 1)
+                    } else {
+                        it
+                    }
+                },
+            )
+        }
+
     suspend fun retirePhoto(id: String, uri: String): Audit? =
         modifie(id) { audit -> audit.copy(photos = audit.photos.filterNot { it.uri == uri }) }
 

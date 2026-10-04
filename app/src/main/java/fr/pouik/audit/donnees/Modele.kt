@@ -17,7 +17,31 @@ data class Photo(
     val numero: Int,
     val legende: String = "",
     val priseLe: Long,
+    /**
+     * Les annotations, gardées en clair plutôt que seulement gravées dans le JPEG :
+     * c'est ce qui permet de rouvrir l'éditeur dans six mois et de déplacer un
+     * rectangle au lieu de tout refaire. L'original correspondant dort dans le
+     * stockage privé de l'app (voir Retouche).
+     */
+    val annotations: List<Forme> = emptyList(),
+    /**
+     * Incrémenté à chaque réécriture du fichier.
+     *
+     * L'URI MediaStore ne change pas quand on réécrit le JPEG annoté : sans ce
+     * numéro dans la clé de cache, Coil continuerait d'afficher la version
+     * d'avant, et on croirait l'enregistrement raté.
+     */
+    val version: Int = 0,
 )
+
+/**
+ * Clé d'un cliché pour le stockage de son original.
+ *
+ * Bâtie sur l'audit et le numéro plutôt que sur l'URI MediaStore : l'URI peut changer
+ * (fichier recréé, média réindexé) alors que le couple audit/numéro, lui, ne bouge
+ * jamais — les numéros n'étant jamais réutilisés.
+ */
+fun Photo.cle(idAudit: String): String = "$idAudit-${numero.toString().padStart(3, '0')}"
 
 /**
  * Un audit : une fiche et un dossier de photos.

@@ -7,6 +7,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -24,6 +25,7 @@ import fr.pouik.audit.photos.partageUnePhoto
 import fr.pouik.audit.ui.Confirmation
 import fr.pouik.audit.ui.EcranAudit
 import fr.pouik.audit.ui.EcranAudits
+import fr.pouik.audit.ui.EcranEditeur
 import fr.pouik.audit.ui.EcranCamera
 import fr.pouik.audit.ui.EcranPhoto
 import fr.pouik.audit.ui.FeuilleAudit
@@ -54,6 +56,7 @@ private sealed interface Ecran {
     data class Detail(val id: String) : Ecran
     data class Camera(val id: String) : Ecran
     data class Visionneuse(val id: String, val uri: String) : Ecran
+    data class Editeur(val id: String, val uri: String) : Ecran
 }
 
 @Composable
@@ -62,6 +65,8 @@ private fun Application(modele: ModeleVue) {
     val audits by modele.audits.collectAsStateWithLifecycle()
     val pret by modele.pret.collectAsStateWithLifecycle()
     val message by modele.message.collectAsStateWithLifecycle()
+    val apercu by modele.apercu.collectAsStateWithLifecycle()
+    val enregistreAnnotations by modele.enregistreAnnotations.collectAsStateWithLifecycle()
 
     var ecran by remember { mutableStateOf<Ecran>(Ecran.Liste) }
     // null = fermée, Pair(null) = création, Pair(audit) = modification
@@ -81,6 +86,7 @@ private fun Application(modele: ModeleVue) {
     val ouvert = (ecran as? Ecran.Detail)?.id
         ?: (ecran as? Ecran.Camera)?.id
         ?: (ecran as? Ecran.Visionneuse)?.id
+        ?: (ecran as? Ecran.Editeur)?.id
     val audit = audits.firstOrNull { it.id == ouvert }
 
     // Un audit supprimé pendant qu'on le regarde (ou un identifiant devenu
@@ -93,6 +99,9 @@ private fun Application(modele: ModeleVue) {
         ecran = when (val e = ecran) {
             is Ecran.Visionneuse -> Ecran.Detail(e.id)
             is Ecran.Camera -> Ecran.Detail(e.id)
+            // Le retour depuis l'éditeur ramène à la photo qu'on vient d'annoter, pas
+            // à la grille : on veut vérifier son travail en grand.
+            is Ecran.Editeur -> Ecran.Visionneuse(e.id, e.uri)
             else -> Ecran.Liste
         }
     }
@@ -153,7 +162,32 @@ private fun Application(modele: ModeleVue) {
                 onLegende = { photo, legende -> modele.majLegende(a.id, photo, legende) },
                 onSupprime = { modele.supprimePhoto(a.id, it) },
                 onPartage = { partageUnePhoto(contexte, it.uri, it.legende) },
+                onAnnote = { ecran = Ecran.Editeur(a.id, it.uri) },
             )
+        }
+
+        is Ecran.Editeur -> {
+            val photo = audit?.photos?.firstOrNull { it.uri == e.uri }
+            if (photo == null) {
+                LaunchedEffect(e.uri) { ecran = Ecran.Liste }
+            } else {
+                // Le chargement est lancé une fois par photo ouverte : relire le fichier
+                // à chaque recomposition relirait plusieurs mégaoctets pour rien.
+                LaunchedEffect(e.uri) { modele.ouvreEditeur(e.id, photo) }
+                DisposableEffect(e.uri) { onDispose { modele.fermeEditeur() } }
+                EcranEditeur(
+                    titre = photo.legende.ifBlank { photo.fichier },
+                    image = apercu,
+                    initiales = photo.annotations,
+                    enregistrement = enregistreAnnotations,
+                    onRetour = { ecran = Ecran.Visionneuse(e.id, e.uri) },
+                    onEnregistre = { formes ->
+                        modele.enregistreAnnotations(e.id, photo, formes) {
+                            ecran = Ecran.Visionneuse(e.id, e.uri)
+                        }
+                    },
+                )
+            }
         }
     }
 

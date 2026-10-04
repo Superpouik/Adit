@@ -163,7 +163,7 @@ private fun CarteAudit(
             Modifier.padding(12.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Vignette(audit.photos.maxByOrNull { it.numero }?.uri, taille = 64)
+            Vignette(audit.photos.maxByOrNull { it.numero }, taille = 64)
             EspaceH(12)
             Column(Modifier.weight(1f)) {
                 Text(
@@ -216,9 +216,9 @@ private fun CarteAudit(
  * leur taille réelle dans une liste, c'est trente OutOfMemory.
  */
 @Composable
-fun Vignette(uri: String?, taille: Int, modifier: Modifier = Modifier) {
+fun Vignette(photo: fr.pouik.audit.donnees.Photo?, taille: Int, modifier: Modifier = Modifier) {
     val forme = RoundedCornerShape(8.dp)
-    if (uri == null) {
+    if (photo == null) {
         Box(
             modifier
                 .size(taille.dp)
@@ -230,7 +230,7 @@ fun Vignette(uri: String?, taille: Int, modifier: Modifier = Modifier) {
         }
     } else {
         AsyncImage(
-            model = uri,
+            model = requeteImage(androidx.compose.ui.platform.LocalContext.current, photo),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = modifier.size(taille.dp).clip(forme),
