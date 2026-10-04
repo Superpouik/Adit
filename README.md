@@ -184,3 +184,4 @@ redimensionnement à la poignée, déformation d'un rectangle en quadrilatère,
 enregistrement, ré-ouverture de l'éditeur pour vérifier que rien ne s'empile. Fichiers, entrées MediaStore et catalogue contrôlés à chaque
 étape.
 # Adit
+# Adit
