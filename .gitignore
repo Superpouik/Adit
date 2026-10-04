@@ -1,0 +1,16 @@
+# Sorties de build
+/build/
+/app/build/
+.gradle/
+
+# Propre à la machine
+local.properties
+
+# Clé de signature maison : elle ne quitte pas le poste.
+*.jks
+*.keystore
+
+# Android Studio
+.idea/
+*.iml
+captures/

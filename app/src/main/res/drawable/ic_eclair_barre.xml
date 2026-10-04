@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M13,2 L5,13.5 h5.2 L9.5,22 L19,10 h-5.6 Z" />
+    <!-- La barre est doublée d'un liseré sombre : sur fond de viseur, un trait
+         blanc sur une icône blanche ne se voit pas. -->
+    <path
+        android:strokeColor="#000000"
+        android:strokeWidth="4"
+        android:pathData="M3.5,3.5 L20.5,20.5" />
+    <path
+        android:strokeColor="@android:color/white"
+        android:strokeWidth="2"
+        android:pathData="M3.5,3.5 L20.5,20.5" />
+</vector>

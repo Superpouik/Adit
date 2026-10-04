@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- app_name est défini par buildType dans build.gradle.kts : la build de
+         test porte un autre nom pour se distinguer sur l'écran d'accueil. -->
+</resources>

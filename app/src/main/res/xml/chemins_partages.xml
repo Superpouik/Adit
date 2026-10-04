@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Le récapitulatif est écrit ici juste avant d'être joint à un mail :
+         le cache se vide tout seul, les fichiers ne s'accumulent pas. -->
+    <cache-path name="partage" path="partage/" />
+</paths>
