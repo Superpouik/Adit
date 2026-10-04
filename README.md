@@ -136,6 +136,18 @@ et un catalogue illisible est mis de côté plutôt qu'écrasé.
   code : 21,5 Mo de dex contre 0,18 Mo de bibliothèques natives — filtrer les ABI, piste
   évidente et vérifiée au dézippage, ne rapporterait rien.
 
+## Installer sur le téléphone
+
+```bash
+./pousser.sh
+```
+
+Compile, installe et ouvre. Le téléphone se joint en **débogage sans fil** (Options de
+développement), sur le même Wi-Fi que le poste : le script va chercher son annonce mDNS
+et s'y connecte tout seul s'il n'est pas déjà joint. `./pousser.sh emu` vise
+l'émulateur, `./pousser.sh tel debug` installe la variante de test à côté de l'app
+réelle.
+
 ## Construire
 
 ```bash
