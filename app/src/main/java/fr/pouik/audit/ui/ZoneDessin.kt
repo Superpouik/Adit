@@ -9,13 +9,20 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
@@ -23,19 +30,14 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import fr.pouik.audit.donnees.Boite
 import fr.pouik.audit.donnees.Forme
-import fr.pouik.audit.donnees.deplacee
-import fr.pouik.audit.donnees.redimensionnee
+import fr.pouik.audit.donnees.poigneesDe
+import fr.pouik.audit.donnees.sommets
 import fr.pouik.audit.photos.Rendu
 
 /** Ce que le doigt est en train de faire. */
-private enum class Geste { AUCUN, CREATION, DEPLACEMENT, REDIMENSION }
+private enum class Geste { AUCUN, CREATION, DEPLACEMENT, POIGNEE }
 
 /**
  * La photo et ses annotations, avec les gestes qui vont avec.
@@ -57,7 +59,7 @@ fun ZoneDessin(
     onFini: () -> Unit,
     onSelectionne: (String?) -> Unit,
     onDeplace: (Float, Float) -> Unit,
-    onRedimensionne: (Float, Float) -> Unit,
+    onPoignee: (Int, Float, Float, Boite) -> Unit,
     onPoseTexte: (Float, Float) -> Unit,
     onHistorique: () -> Unit,
 ) {
@@ -89,12 +91,12 @@ fun ZoneDessin(
                 modifier = Modifier.fillMaxSize(),
             )
 
-            var zone by remember { mutableStateOf(Size.Zero) }
-            // Mémorisées au début du geste : redimensionner à partir des valeurs
-            // courantes ferait s'emballer la forme, chaque image réutilisant la taille
-            // que la précédente venait de produire.
-            var ancrage by remember { mutableStateOf(Offset.Zero) }
             var geste by remember { mutableStateOf(Geste.AUCUN) }
+            var poigneeActive by remember { mutableIntStateOf(-1) }
+            // Figée au début du geste : le coin opposé sert d'ancre, et le recalculer à
+            // chaque image le ferait bouger dès qu'on traverse la forme — la figure
+            // partirait alors en vrille au lieu de se retourner proprement.
+            var ancrage by remember { mutableStateOf(Boite(0f, 0f, 0f, 0f)) }
 
             androidx.compose.foundation.Canvas(
                 Modifier
@@ -112,30 +114,29 @@ fun ZoneDessin(
                             }
                         }
                     }
-                    .pointerInput(outil, selection) {
-                        val rayonPoignee = with(densite) { 28.dp.toPx() }
+                    .pointerInput(outil, selection, formes) {
+                        val rayonPoignee = with(densite) { 30.dp.toPx() }
                         detectDragGestures(
                             onDragStart = { position ->
-                                ancrage = position
                                 val l = size.width.toFloat()
                                 val h = size.height.toFloat()
                                 val nx = position.x / l
                                 val ny = position.y / h
 
-                                // La poignée répond quel que soit l'outil tenu : elle
-                                // est dessinée à l'écran, donc on s'attend à pouvoir la
-                                // tirer. Obliger à repasser par l'outil Sélection pour
-                                // agrandir la forme qu'on vient de poser était la
-                                // première chose qui surprenait à l'usage.
+                                // Les poignées répondent quel que soit l'outil tenu :
+                                // elles sont dessinées à l'écran, donc on s'attend à
+                                // pouvoir les tirer. Obliger à repasser par l'outil
+                                // Sélection pour ajuster la forme qu'on vient de poser
+                                // était la première chose qui surprenait à l'usage.
                                 val courante = formes.firstOrNull { it.id == selection }
-                                val boite = courante?.let { Rendu.boiteDe(it, l, h) }
-                                val surPoignee = boite != null && kotlin.math.hypot(
-                                    position.x - boite.droite * l,
-                                    position.y - boite.bas * h,
-                                ) <= rayonPoignee
-                                if (surPoignee) {
+                                val attrapee = courante?.let {
+                                    poigneeLaPlusProche(it, position.x, position.y, l, h, rayonPoignee)
+                                } ?: -1
+                                if (attrapee >= 0 && courante != null) {
                                     onHistorique()
-                                    geste = Geste.REDIMENSION
+                                    poigneeActive = attrapee
+                                    ancrage = Rendu.boiteDe(courante, l, h)
+                                    geste = Geste.POIGNEE
                                     return@detectDragGestures
                                 }
                                 if (outil != Outil.SELECTION) {
@@ -161,31 +162,28 @@ fun ZoneDessin(
                                         Offset(evenement.position.x / l, evenement.position.y / h),
                                     )
                                     Geste.DEPLACEMENT -> onDeplace(delta.x / l, delta.y / h)
-                                    Geste.REDIMENSION -> {
-                                        val courante = formes.firstOrNull { it.id == selection }
-                                        if (courante != null) {
-                                            val b = Rendu.boiteDe(courante, l, h)
-                                            onRedimensionne(
-                                                evenement.position.x / l - b.x,
-                                                evenement.position.y / h - b.y,
-                                            )
-                                        }
-                                    }
+                                    Geste.POIGNEE -> onPoignee(
+                                        poigneeActive,
+                                        evenement.position.x / l,
+                                        evenement.position.y / h,
+                                        ancrage,
+                                    )
                                     Geste.AUCUN -> Unit
                                 }
                             },
                             onDragEnd = {
                                 if (geste == Geste.CREATION) onFini()
                                 geste = Geste.AUCUN
+                                poigneeActive = -1
                             },
                             onDragCancel = {
                                 if (geste == Geste.CREATION) onFini()
                                 geste = Geste.AUCUN
+                                poigneeActive = -1
                             },
                         )
                     },
             ) {
-                zone = size
                 drawIntoCanvas { toile ->
                     Rendu.dessine(
                         toile.nativeCanvas,
@@ -196,34 +194,84 @@ fun ZoneDessin(
                     )
                 }
 
-                // Le cadre de sélection et sa poignée sont dessinés par-dessus, et ne
-                // partent évidemment pas dans le fichier exporté : ils n'existent que
+                // Le contour de sélection et ses poignées sont dessinés par-dessus, et
+                // ne partent évidemment pas dans le fichier exporté : ils n'existent que
                 // le temps de l'édition.
-                val choisie = formes.firstOrNull { it.id == selection }
-                if (choisie != null) {
-                    val b: Boite = Rendu.boiteDe(choisie, size.width, size.height)
-                    val marge = 6.dp.toPx()
-                    drawRect(
-                        color = Color.White,
-                        topLeft = Offset(b.x * size.width - marge, b.y * size.height - marge),
-                        size = Size(
-                            b.l * size.width + 2 * marge,
-                            b.h * size.height + 2 * marge,
-                        ),
-                        style = Stroke(
-                            width = 2.dp.toPx(),
-                            pathEffect = PathEffect.dashPathEffect(
-                                floatArrayOf(12f, 10f),
-                            ),
-                        ),
-                    )
-                    val poignee = Offset(b.droite * size.width, b.bas * size.height)
-                    drawCircle(Color.White, radius = 11.dp.toPx(), center = poignee)
-                    drawCircle(Color.Black, radius = 7.dp.toPx(), center = poignee)
+                formes.firstOrNull { it.id == selection }?.let { choisie ->
+                    dessineSelection(choisie, poigneeActive)
                 }
             }
         }
     }
+}
+
+/**
+ * Le contour de la sélection, puis ses poignées.
+ *
+ * Le contour épouse les sommets réels : sur un rectangle déformé, un cadre droit
+ * mentirait sur la forme qu'on est en train d'ajuster.
+ */
+private fun DrawScope.dessineSelection(forme: Forme, poigneeActive: Int) {
+    val boite = Rendu.boiteDe(forme, size.width, size.height)
+    val pointilles = PathEffect.dashPathEffect(floatArrayOf(12f, 10f))
+
+    if (forme is Forme.Rectangle) {
+        val sommets = forme.sommets()
+        val chemin = Path().apply {
+            moveTo(sommets[0].x * size.width, sommets[0].y * size.height)
+            sommets.drop(1).forEach { lineTo(it.x * size.width, it.y * size.height) }
+            close()
+        }
+        drawPath(chemin, Color.White, style = Stroke(width = 2.dp.toPx(), pathEffect = pointilles))
+    } else if (forme !is Forme.Fleche) {
+        val marge = 6.dp.toPx()
+        drawRect(
+            color = Color.White,
+            topLeft = Offset(boite.x * size.width - marge, boite.y * size.height - marge),
+            size = androidx.compose.ui.geometry.Size(
+                boite.l * size.width + 2 * marge,
+                boite.h * size.height + 2 * marge,
+            ),
+            style = Stroke(width = 2.dp.toPx(), pathEffect = pointilles),
+        )
+    }
+
+    poigneesDe(forme, boite).forEachIndexed { index, point ->
+        val centre = Offset(point.x * size.width, point.y * size.height)
+        // Celle qu'on tient grossit : sous le doigt, la poignée est cachée, et c'est le
+        // seul moyen de savoir laquelle a été attrapée.
+        val rayon = if (index == poigneeActive) 14.dp.toPx() else 11.dp.toPx()
+        drawCircle(Color.White, radius = rayon, center = centre)
+        drawCircle(Color.Black, radius = rayon * 0.6f, center = centre)
+    }
+}
+
+/**
+ * L'indice de la poignée sous le doigt, ou -1.
+ *
+ * La plus proche l'emporte : sur une forme réduite à presque rien, deux poignées se
+ * chevauchent, et attraper systématiquement la première rendrait les autres
+ * inatteignables.
+ */
+private fun poigneeLaPlusProche(
+    forme: Forme,
+    px: Float,
+    py: Float,
+    largeur: Float,
+    hauteur: Float,
+    rayon: Float,
+): Int {
+    val boite = Rendu.boiteDe(forme, largeur, hauteur)
+    var meilleur = -1
+    var distanceMin = rayon
+    poigneesDe(forme, boite).forEachIndexed { index, point ->
+        val d = kotlin.math.hypot(px - point.x * largeur, py - point.y * hauteur)
+        if (d <= distanceMin) {
+            distanceMin = d
+            meilleur = index
+        }
+    }
+    return meilleur
 }
 
 /**

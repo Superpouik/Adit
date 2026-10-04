@@ -35,8 +35,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import fr.pouik.audit.donnees.Forme
+import fr.pouik.audit.donnees.avecPoignee
 import fr.pouik.audit.donnees.deplacee
-import fr.pouik.audit.donnees.redimensionnee
+import fr.pouik.audit.donnees.redresse
 
 /**
  * L'éditeur d'annotations.
@@ -82,6 +83,19 @@ fun EcranEditeur(
             historique = historique.dropLast(1)
             selection = null
         }
+    }
+
+    /**
+     * Changer d'outil de tracé lâche la sélection.
+     *
+     * Sans ça, choisir « Trait » puis une couleur repeignait la forme d'avant au lieu
+     * de préparer la suivante : la palette agit sur la sélection quand il y en a une,
+     * et prendre un outil de dessin veut dire qu'on en a fini avec la forme précédente.
+     * L'outil Sélection, lui, garde ce qui est sélectionné — c'est sa raison d'être.
+     */
+    fun choisitOutil(nouveau: Outil) {
+        if (nouveau != Outil.SELECTION) selection = null
+        outil = nouveau
     }
 
     fun modifieSelection(transforme: (Forme) -> Forme) {
@@ -163,7 +177,9 @@ fun EcranEditeur(
                 },
                 onSelectionne = { selection = it },
                 onDeplace = { dx, dy -> modifieSelection { it.deplacee(dx, dy) } },
-                onRedimensionne = { l, h -> modifieSelection { it.redimensionnee(l, h) } },
+                onPoignee = { index, nx, ny, ancrage ->
+                    modifieSelection { avecPoignee(it, index, nx, ny, ancrage) }
+                },
                 onPoseTexte = { x, y -> saisie = SaisieTexte(x = x, y = y) },
                 onHistorique = { pousse() },
             )
@@ -176,7 +192,7 @@ fun EcranEditeur(
 
             if (large) {
                 Row(Modifier.fillMaxSize()) {
-                    RailOutils(outil) { outil = it }
+                    RailOutils(outil) { choisitOutil(it) }
                     Box(Modifier.weight(1f)) { zone(Modifier) }
                     PanneauReglages(
                         modifier = Modifier.width(300.dp),
@@ -207,6 +223,12 @@ fun EcranEditeur(
                         onEditeTexte = {
                             val t = formes.firstOrNull { it.id == selection } as? Forme.Texte
                             if (t != null) saisie = SaisieTexte(t.x, t.y, t.contenu, t.fond != null, t.id)
+                        },
+                        onRedresse = {
+                            pousse()
+                            modifieSelection { f ->
+                                if (f is Forme.Rectangle) f.redresse() else f
+                            }
                         },
                         onSupprime = {
                             pousse()
@@ -250,13 +272,19 @@ fun EcranEditeur(
                             val t = formes.firstOrNull { it.id == selection } as? Forme.Texte
                             if (t != null) saisie = SaisieTexte(t.x, t.y, t.contenu, t.fond != null, t.id)
                         },
+                        onRedresse = {
+                            pousse()
+                            modifieSelection { f ->
+                                if (f is Forme.Rectangle) f.redresse() else f
+                            }
+                        },
                         onSupprime = {
                             pousse()
                             formes = formes.filterNot { it.id == selection }
                             selection = null
                         },
                     )
-                    BarreOutils(outil) { outil = it }
+                    BarreOutils(outil) { choisitOutil(it) }
                 }
             }
         }

@@ -8,6 +8,7 @@ import android.graphics.RectF
 import fr.pouik.audit.donnees.Boite
 import fr.pouik.audit.donnees.Forme
 import fr.pouik.audit.donnees.boiteGeometrique
+import fr.pouik.audit.donnees.sommets
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.hypot
@@ -47,7 +48,21 @@ object Rendu {
             when (forme) {
                 is Forme.Rectangle -> {
                     prepare(forme.couleur, forme.plein, forme.epaisseur, largeur)
-                    canvas.drawRect(enPixels(forme.x, forme.y, forme.l, forme.h, largeur, hauteur), pinceau)
+                    if (forme.coins == null) {
+                        canvas.drawRect(
+                            enPixels(forme.x, forme.y, forme.l, forme.h, largeur, hauteur),
+                            pinceau,
+                        )
+                    } else {
+                        // Déformé, ce n'est plus un rectangle mais un quadrilatère
+                        // quelconque : seul un chemin fermé peut l'épouser.
+                        val chemin = android.graphics.Path()
+                        val sommets = forme.sommets()
+                        chemin.moveTo(sommets[0].x * largeur, sommets[0].y * hauteur)
+                        sommets.drop(1).forEach { chemin.lineTo(it.x * largeur, it.y * hauteur) }
+                        chemin.close()
+                        canvas.drawPath(chemin, pinceau)
+                    }
                 }
                 is Forme.Ellipse -> {
                     prepare(forme.couleur, forme.plein, forme.epaisseur, largeur)
@@ -98,6 +113,10 @@ object Rendu {
 
         // La pointe suit l'épaisseur du trait, pas une taille fixe : une flèche fine
         // avec une tête énorme, ou l'inverse, ne se lit pas.
+        // Sans pointe, c'est un trait : la ligne est déjà tracée, il n'y a rien à
+        // ajouter au bout.
+        if (!f.pointe) return
+
         val longueur = hypot(x2 - x1, y2 - y1)
         if (longueur < 1f) return
         val taille = (f.epaisseur * largeur * 4f).coerceAtMost(longueur * 0.5f)

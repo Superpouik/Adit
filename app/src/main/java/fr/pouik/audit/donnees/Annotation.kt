@@ -30,6 +30,19 @@ sealed class Forme {
         /** Rempli pour masquer une zone, en contour pour l'entourer sans la cacher. */
         val plein: Boolean = true,
         val epaisseur: Float = EPAISSEUR_DEFAUT,
+        /**
+         * Les quatre sommets, quand la forme a été déformée — x et y alternés, dans
+         * l'ordre haut-gauche, haut-droite, bas-droite, bas-gauche.
+         *
+         * Nul tant qu'on n'a pas tiré sur un coin : le rectangle reste alors décrit par
+         * son cadre droit. Un écran PLV photographié de biais n'est pas un rectangle
+         * mais un trapèze ; sans sommets libres, l'aplat déborde d'un côté ou laisse
+         * voir l'écran de l'autre.
+         *
+         * Le cadre droit (x, y, l, h) reste tenu à jour comme boîte englobante des
+         * sommets : c'est lui qui sert à attraper la forme au doigt.
+         */
+        val coins: List<Float>? = null,
     ) : Forme()
 
     @Serializable
@@ -55,6 +68,14 @@ sealed class Forme {
         val y2: Float,
         val couleur: Long,
         val epaisseur: Float = EPAISSEUR_DEFAUT,
+        /**
+         * Sans pointe, c'est un simple trait.
+         *
+         * Même forme et mêmes gestes : une flèche désigne, un trait relie ou souligne —
+         * la ligne d'accroche d'un écran suspendu, par exemple, où une pointe laisserait
+         * croire qu'on montre quelque chose.
+         */
+        val pointe: Boolean = true,
     ) : Forme()
 
     @Serializable
@@ -106,6 +127,9 @@ data class Boite(val x: Float, val y: Float, val l: Float, val h: Float) {
         px >= x - marge && px <= droite + marge && py >= y - marge && py <= bas + marge
 }
 
+/** Un sommet, en coordonnées normalisées. */
+data class Point(val x: Float, val y: Float)
+
 /**
  * Normalise une boîte tracée à l'envers.
  *
@@ -119,12 +143,30 @@ fun boiteDepuisCoins(x1: Float, y1: Float, x2: Float, y2: Float): Boite = Boite(
     h = kotlin.math.abs(y2 - y1),
 )
 
+/** Les quatre sommets d'une boîte : haut-gauche, haut-droite, bas-droite, bas-gauche. */
+fun Boite.sommets(): List<Point> = listOf(
+    Point(x, y),
+    Point(droite, y),
+    Point(droite, bas),
+    Point(x, bas),
+)
+
+/**
+ * Les sommets effectifs d'un rectangle : ceux qu'on a tirés s'il a été déformé, ceux de
+ * son cadre sinon.
+ */
+fun Forme.Rectangle.sommets(): List<Point> {
+    val libres = coins
+    if (libres == null || libres.size != 8) return Boite(x, y, l, h).sommets()
+    return (0 until 4).map { Point(libres[it * 2], libres[it * 2 + 1]) }
+}
+
 /**
  * Boîte d'une forme, sauf le texte : sa largeur dépend de la police, donc de la mesure,
  * qui appartient au moteur de rendu (voir `Rendu.boiteDe`).
  */
 fun Forme.boiteGeometrique(): Boite? = when (this) {
-    is Forme.Rectangle -> Boite(x, y, l, h)
+    is Forme.Rectangle -> englobe(sommets())
     is Forme.Ellipse -> Boite(x, y, l, h)
     is Forme.Flou -> Boite(x, y, l, h)
     is Forme.Fleche -> boiteDepuisCoins(x1, y1, x2, y2)
@@ -140,9 +182,21 @@ fun Forme.boiteGeometrique(): Boite? = when (this) {
     is Forme.Texte -> null
 }
 
+private fun englobe(points: List<Point>): Boite {
+    val xs = points.map { it.x }
+    val ys = points.map { it.y }
+    return Boite(xs.min(), ys.min(), xs.max() - xs.min(), ys.max() - ys.min())
+}
+
 /** Déplace une forme de [dx] et [dy] (en fraction de l'image). */
 fun Forme.deplacee(dx: Float, dy: Float): Forme = when (this) {
-    is Forme.Rectangle -> copy(x = x + dx, y = y + dy)
+    is Forme.Rectangle -> copy(
+        x = x + dx,
+        y = y + dy,
+        // Les sommets libres suivent, sans quoi déplacer une forme déformée la
+        // laisserait sur place en ne bougeant que sa boîte.
+        coins = coins?.mapIndexed { i, v -> if (i % 2 == 0) v + dx else v + dy },
+    )
     is Forme.Ellipse -> copy(x = x + dx, y = y + dy)
     is Forme.Flou -> copy(x = x + dx, y = y + dy)
     is Forme.Texte -> copy(x = x + dx, y = y + dy)
@@ -153,36 +207,85 @@ fun Forme.deplacee(dx: Float, dy: Float): Forme = when (this) {
 }
 
 /**
- * Redimensionne une forme par sa poignée bas-droite.
+ * Les points qu'on peut attraper pour déformer une forme.
  *
- * Les dimensions sont bornées par le bas : une forme ramenée à zéro deviendrait
- * invisible et impossible à rattraper, puisqu'on ne pourrait plus la toucher.
+ * Quatre coins pour tout ce qui occupe une surface, deux extrémités pour une ligne.
+ * [boite] vient de l'appelant parce que celle d'un texte demande une mesure de police.
  */
-fun Forme.redimensionnee(nouvelleLargeur: Float, nouvelleHauteur: Float): Forme {
-    val l = nouvelleLargeur.coerceAtLeast(MINIMUM)
-    val h = nouvelleHauteur.coerceAtLeast(MINIMUM)
-    return when (this) {
-        is Forme.Rectangle -> copy(l = l, h = h)
-        is Forme.Ellipse -> copy(l = l, h = h)
-        is Forme.Flou -> copy(l = l, h = h)
-        is Forme.Fleche -> copy(x2 = x1 + nouvelleLargeur, y2 = y1 + nouvelleHauteur)
-        // Un texte ne s'étire pas : on change sa taille de police, en suivant la
-        // hauteur tirée. L'étirer déformerait les lettres.
+fun poigneesDe(forme: Forme, boite: Boite): List<Point> = when (forme) {
+    is Forme.Rectangle -> forme.sommets()
+    is Forme.Fleche -> listOf(Point(forme.x1, forme.y1), Point(forme.x2, forme.y2))
+    else -> boite.sommets()
+}
+
+/**
+ * Déplace la poignée [index] vers (nx, ny).
+ *
+ * Le rectangle est le seul à se déformer librement : chacun de ses sommets va où on le
+ * met, pour épouser un objet vu de biais. Les autres formes gardent un cadre droit et
+ * se redimensionnent en laissant fixe le coin opposé à celui qu'on tire — c'est ce qui
+ * permet d'ajuster un bord sans avoir à repositionner la forme ensuite.
+ */
+fun avecPoignee(forme: Forme, index: Int, nx: Float, ny: Float, boite: Boite): Forme {
+    if (forme is Forme.Rectangle) {
+        val sommets = forme.sommets().toMutableList()
+        if (index !in sommets.indices) return forme
+        sommets[index] = Point(nx, ny)
+        val cadre = englobe(sommets)
+        return forme.copy(
+            x = cadre.x,
+            y = cadre.y,
+            l = cadre.l,
+            h = cadre.h,
+            coins = sommets.flatMap { listOf(it.x, it.y) },
+        )
+    }
+    if (forme is Forme.Fleche) {
+        return if (index == 0) forme.copy(x1 = nx, y1 = ny) else forme.copy(x2 = nx, y2 = ny)
+    }
+
+    // Le sommet diagonalement opposé ne bouge pas : il sert d'ancre.
+    val ancre = boite.sommets()[(index + 2) % 4]
+    val cadre = boiteDepuisCoins(ancre.x, ancre.y, nx, ny)
+    val l = cadre.l.coerceAtLeast(MINIMUM)
+    val h = cadre.h.coerceAtLeast(MINIMUM)
+    return when (forme) {
+        is Forme.Ellipse -> forme.copy(x = cadre.x, y = cadre.y, l = l, h = h)
+        is Forme.Flou -> forme.copy(x = cadre.x, y = cadre.y, l = l, h = h)
+        // Un texte ne s'étire pas : on change sa taille de police en suivant la hauteur
+        // tirée. L'étirer déformerait les lettres.
         is Forme.Texte -> {
-            val lignes = contenu.count { it == '\n' } + 1
-            copy(taille = (h / lignes).coerceIn(0.01f, 0.5f))
+            val lignes = forme.contenu.count { it == '\n' } + 1
+            forme.copy(
+                x = cadre.x,
+                y = cadre.y,
+                taille = (h / lignes).coerceIn(0.01f, 0.5f),
+            )
         }
         is Forme.Trait -> {
-            val b = boiteGeometrique() ?: return this
+            val b = forme.boiteGeometrique() ?: return forme
             val fx = if (b.l > MINIMUM) l / b.l else 1f
             val fy = if (b.h > MINIMUM) h / b.h else 1f
-            copy(
-                points = points.mapIndexed { i, v ->
-                    if (i % 2 == 0) b.x + (v - b.x) * fx else b.y + (v - b.y) * fy
+            forme.copy(
+                points = forme.points.mapIndexed { i, v ->
+                    if (i % 2 == 0) {
+                        cadre.x + (v - b.x) * fx
+                    } else {
+                        cadre.y + (v - b.y) * fy
+                    }
                 },
             )
         }
+        else -> forme
     }
 }
+
+/**
+ * Rend son cadre droit à un rectangle déformé.
+ *
+ * Sans cette sortie de secours, quatre sommets mal tirés ne se rattrapent qu'en
+ * supprimant la forme et en la retraçant.
+ */
+fun Forme.Rectangle.redresse(): Forme.Rectangle = copy(coins = null)
 
 private const val MINIMUM = 0.01f

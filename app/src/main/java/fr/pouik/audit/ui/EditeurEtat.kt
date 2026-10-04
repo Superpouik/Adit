@@ -30,7 +30,8 @@ object Formes {
             Outil.RECTANGLE -> Forme.Rectangle(id, x, y, 0f, 0f, couleur, plein = true, epaisseur = epaisseur)
             Outil.CADRE -> Forme.Rectangle(id, x, y, 0f, 0f, couleur, plein = false, epaisseur = epaisseur)
             Outil.ELLIPSE -> Forme.Ellipse(id, x, y, 0f, 0f, couleur, plein = false, epaisseur = epaisseur)
-            Outil.FLECHE -> Forme.Fleche(id, x, y, x, y, couleur, epaisseur)
+            Outil.FLECHE -> Forme.Fleche(id, x, y, x, y, couleur, epaisseur, pointe = true)
+            Outil.LIGNE -> Forme.Fleche(id, x, y, x, y, couleur, epaisseur, pointe = false)
             Outil.CRAYON -> Forme.Trait(id, listOf(x, y), couleur, epaisseur)
             Outil.FLOU -> Forme.Flou(id, x, y, 0f, 0f, force)
             Outil.TEXTE, Outil.SELECTION -> null

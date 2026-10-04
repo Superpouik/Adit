@@ -27,15 +27,23 @@ class AnnotationsPersistanceTest {
     private val toutesLesFormes = listOf(
         Forme.Rectangle("a", 0.1f, 0.1f, 0.3f, 0.2f, 0xFF1E88E5L, plein = true),
         Forme.Rectangle("b", 0.2f, 0.2f, 0.3f, 0.2f, 0xFFE53935L, plein = false),
+        // Un quadrilatère déformé : ses sommets libres doivent survivre au
+        // redémarrage, sinon l'aplat posé sur un écran vu de biais redeviendrait
+        // un rectangle droit et déborderait.
+        Forme.Rectangle(
+            "b2", 0.2f, 0.2f, 0.4f, 0.4f, 0xFF1E88E5L,
+            coins = listOf(0.2f, 0.25f, 0.6f, 0.2f, 0.6f, 0.55f, 0.2f, 0.6f),
+        ),
         Forme.Ellipse("c", 0.3f, 0.3f, 0.2f, 0.2f, 0xFF43A047L),
         Forme.Fleche("d", 0.1f, 0.9f, 0.6f, 0.4f, 0xFFFDD835L),
+        Forme.Fleche("d2", 0.2f, 0.8f, 0.7f, 0.8f, 0xFFFFFFFFL, pointe = false),
         Forme.Trait("e", listOf(0.1f, 0.1f, 0.2f, 0.3f, 0.4f, 0.2f), 0xFF8E24AAL),
         Forme.Texte("f", 0.05f, 0.05f, "Carrefour City\n89 Mail F. Mitterrand", 0xFF000000L, fond = 0xFFFFFFFFL),
         Forme.Flou("g", 0.7f, 0.7f, 0.2f, 0.2f, force = 0.03f),
     )
 
     @Test
-    fun `les six types de formes se relisent a l'identique`() = runTest {
+    fun `tous les types de formes se relisent a l'identique`() = runTest {
         val premier = Depot(dossier.root)
         premier.charge()
         val audit = premier.cree("Carrefour City", "Rennes", "", 1L)

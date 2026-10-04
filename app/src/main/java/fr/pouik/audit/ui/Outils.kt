@@ -19,6 +19,7 @@ enum class Outil(val libelle: String) {
     CADRE("Cadre"),
     ELLIPSE("Ellipse"),
     FLECHE("Flèche"),
+    LIGNE("Trait"),
     CRAYON("Crayon"),
     TEXTE("Texte"),
     FLOU("Flou"),
@@ -67,6 +68,12 @@ fun IconeOutil(outil: Outil, teinte: Color, modifier: Modifier = Modifier) {
                 drawLine(teinte, arrivee, arrivee + Offset(-size.width * 0.26f, 0f), trait.width)
                 drawLine(teinte, arrivee, arrivee + Offset(0f, size.height * 0.26f), trait.width)
             }
+            Outil.LIGNE -> drawLine(
+                teinte,
+                Offset(marge, size.height - marge),
+                Offset(size.width - marge, marge),
+                strokeWidth = trait.width,
+            )
             Outil.CRAYON -> {
                 val p = Path().apply {
                     moveTo(marge, size.height * 0.68f)

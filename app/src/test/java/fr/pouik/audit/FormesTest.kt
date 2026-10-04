@@ -4,7 +4,11 @@ import fr.pouik.audit.donnees.Forme
 import fr.pouik.audit.donnees.boiteDepuisCoins
 import fr.pouik.audit.donnees.boiteGeometrique
 import fr.pouik.audit.donnees.deplacee
-import fr.pouik.audit.donnees.redimensionnee
+import fr.pouik.audit.donnees.Point
+import fr.pouik.audit.donnees.avecPoignee
+import fr.pouik.audit.donnees.poigneesDe
+import fr.pouik.audit.donnees.redresse
+import fr.pouik.audit.donnees.sommets
 import fr.pouik.audit.ui.Formes
 import fr.pouik.audit.ui.Outil
 import org.junit.Assert.assertEquals
@@ -103,11 +107,12 @@ class FormesTest {
     }
 
     @Test
-    fun `redimensionner un trait le met a l'echelle sans le deplacer`() {
+    fun `tirer la poignee bas-droite d'un trait le met a l'echelle sans le deplacer`() {
         val trait = Forme.Trait("t", listOf(0.2f, 0.2f, 0.4f, 0.6f), bleu)
-        val grand = trait.redimensionnee(0.4f, 0.8f) as Forme.Trait
+        val boiteAvant = trait.boiteGeometrique()!!
+        val grand = avecPoignee(trait, 2, 0.6f, 1.0f, boiteAvant) as Forme.Trait
         val boite = grand.boiteGeometrique()!!
-        // Le coin haut-gauche ne bouge pas : c'est la poignée bas-droite qu'on tire.
+        // Le coin haut-gauche sert d'ancre : c'est la poignée opposée qu'on tire.
         assertEquals(0.2f, boite.x, 0.001f)
         assertEquals(0.2f, boite.y, 0.001f)
         assertEquals(0.4f, boite.l, 0.001f)
@@ -115,20 +120,130 @@ class FormesTest {
     }
 
     @Test
+    fun `tirer la poignee haut-gauche laisse le coin oppose en place`() {
+        val ellipse = Forme.Ellipse("e", 0.2f, 0.2f, 0.4f, 0.4f, bleu)
+        val boite = ellipse.boiteGeometrique()!!
+        val reduite = avecPoignee(ellipse, 0, 0.4f, 0.5f, boite) as Forme.Ellipse
+        // Le bas-droite était à (0,6 ; 0,6) : il n'a pas bougé.
+        assertEquals(0.6f, reduite.x + reduite.l, 0.001f)
+        assertEquals(0.6f, reduite.y + reduite.h, 0.001f)
+        assertEquals(0.4f, reduite.x, 0.001f)
+        assertEquals(0.5f, reduite.y, 0.001f)
+    }
+
+    @Test
     fun `une forme ne peut pas etre reduite au point de devenir inattrapable`() {
-        val rect = Forme.Rectangle("r", 0.1f, 0.1f, 0.5f, 0.5f, bleu)
-        val minuscule = rect.redimensionnee(0f, -0.3f) as Forme.Rectangle
+        val ellipse = Forme.Ellipse("e", 0.1f, 0.1f, 0.5f, 0.5f, bleu)
+        val boite = ellipse.boiteGeometrique()!!
+        // On ramène la poignée bas-droite exactement sur son ancre.
+        val minuscule = avecPoignee(ellipse, 2, 0.1f, 0.1f, boite) as Forme.Ellipse
         assertTrue(minuscule.l >= 0.01f)
         assertTrue(minuscule.h >= 0.01f)
     }
 
     @Test
-    fun `redimensionner un texte change sa taille de police, pas sa largeur`() {
+    fun `tirer la poignee d'un texte change sa taille de police, pas sa largeur`() {
         val texte = Forme.Texte("t", 0.1f, 0.1f, "deux\nlignes", 0xFF000000L, taille = 0.04f)
-        val grand = texte.redimensionnee(0.5f, 0.2f) as Forme.Texte
+        val boite = fr.pouik.audit.donnees.Boite(0.1f, 0.1f, 0.3f, 0.08f)
+        val grand = avecPoignee(texte, 2, 0.6f, 0.3f, boite) as Forme.Texte
         // Deux lignes pour 0,2 de hauteur tirée : 0,1 par ligne.
         assertEquals(0.1f, grand.taille, 0.001f)
         assertEquals(0.1f, grand.x, 0.001f)
+    }
+
+    @Test
+    fun `un rectangle neuf a quatre sommets deduits de son cadre`() {
+        val rect = Forme.Rectangle("r", 0.2f, 0.3f, 0.4f, 0.2f, bleu)
+        assertEquals(
+            listOf(
+                Point(0.2f, 0.3f),
+                Point(0.6f, 0.3f),
+                Point(0.6f, 0.5f),
+                Point(0.2f, 0.5f),
+            ),
+            rect.sommets(),
+        )
+    }
+
+    @Test
+    fun `tirer un seul sommet deforme le rectangle en quadrilatere`() {
+        val rect = Forme.Rectangle("r", 0.2f, 0.2f, 0.4f, 0.4f, bleu)
+        val boite = rect.boiteGeometrique()!!
+        // Le coin haut-droite rentre vers l'intérieur : c'est la perspective d'un écran
+        // vu de biais.
+        val trapeze = avecPoignee(rect, 1, 0.5f, 0.28f, boite) as Forme.Rectangle
+        val sommets = trapeze.sommets()
+        assertEquals(Point(0.5f, 0.28f), sommets[1])
+        // Les trois autres n'ont pas bougé.
+        assertEquals(Point(0.2f, 0.2f), sommets[0])
+        assertEquals(Point(0.6f, 0.6f), sommets[2])
+        assertEquals(Point(0.2f, 0.6f), sommets[3])
+    }
+
+    @Test
+    fun `le cadre d'un rectangle deforme englobe ses sommets`() {
+        val rect = Forme.Rectangle("r", 0.2f, 0.2f, 0.4f, 0.4f, bleu)
+        val boite = rect.boiteGeometrique()!!
+        // Le sommet haut-gauche part vers le haut et la gauche, hors du cadre d'origine.
+        val tire = avecPoignee(rect, 0, 0.05f, 0.1f, boite) as Forme.Rectangle
+        // Sans mise à jour du cadre, la forme ne serait plus attrapable là où elle est.
+        assertEquals(0.05f, tire.x, 0.001f)
+        assertEquals(0.1f, tire.y, 0.001f)
+        assertEquals(0.55f, tire.l, 0.001f)
+        assertEquals(0.5f, tire.h, 0.001f)
+    }
+
+    @Test
+    fun `deplacer un rectangle deforme emmene ses sommets`() {
+        val rect = Forme.Rectangle("r", 0.2f, 0.2f, 0.4f, 0.4f, bleu)
+        val boite = rect.boiteGeometrique()!!
+        val trapeze = avecPoignee(rect, 1, 0.5f, 0.28f, boite) as Forme.Rectangle
+        val bouge = trapeze.deplacee(0.1f, 0.05f) as Forme.Rectangle
+        assertEquals(Point(0.6f, 0.33f), bouge.sommets()[1])
+        assertEquals(Point(0.3f, 0.25f), bouge.sommets()[0])
+    }
+
+    @Test
+    fun `redresser rend son cadre droit a un rectangle deforme`() {
+        val rect = Forme.Rectangle("r", 0.2f, 0.2f, 0.4f, 0.4f, bleu)
+        val boite = rect.boiteGeometrique()!!
+        val trapeze = avecPoignee(rect, 1, 0.5f, 0.28f, boite) as Forme.Rectangle
+        val droit = trapeze.redresse()
+        assertNull(droit.coins)
+        // Le cadre reste celui qu'avait le quadrilatère : on redresse sur place.
+        assertEquals(trapeze.x, droit.x, 0.001f)
+        assertEquals(trapeze.l, droit.l, 0.001f)
+    }
+
+    @Test
+    fun `une ligne et une fleche se manipulent par leurs deux extremites`() {
+        val ligne = Forme.Fleche("f", 0.1f, 0.1f, 0.5f, 0.5f, bleu, pointe = false)
+        val boite = ligne.boiteGeometrique()!!
+        assertEquals(2, poigneesDe(ligne, boite).size)
+        val tiree = avecPoignee(ligne, 1, 0.9f, 0.2f, boite) as Forme.Fleche
+        assertEquals(0.9f, tiree.x2, 0.001f)
+        assertEquals(0.2f, tiree.y2, 0.001f)
+        // L'origine ne bouge pas, et le trait reste sans pointe.
+        assertEquals(0.1f, tiree.x1, 0.001f)
+        assertFalse(tiree.pointe)
+    }
+
+    @Test
+    fun `les formes a surface offrent quatre poignees`() {
+        val rect = Forme.Rectangle("r", 0.2f, 0.2f, 0.4f, 0.4f, bleu)
+        val ellipse = Forme.Ellipse("e", 0.2f, 0.2f, 0.4f, 0.4f, bleu)
+        val flou = Forme.Flou("f", 0.2f, 0.2f, 0.4f, 0.4f)
+        listOf<Forme>(rect, ellipse, flou).forEach {
+            assertEquals(4, poigneesDe(it, it.boiteGeometrique()!!).size)
+        }
+    }
+
+    @Test
+    fun `l'outil Trait produit une fleche sans pointe`() {
+        val ligne = Formes.nouvelle(Outil.LIGNE, 0.1f, 0.1f, bleu) as Forme.Fleche
+        assertFalse(ligne.pointe)
+        val fleche = Formes.nouvelle(Outil.FLECHE, 0.1f, 0.1f, bleu) as Forme.Fleche
+        assertTrue(fleche.pointe)
     }
 
     @Test

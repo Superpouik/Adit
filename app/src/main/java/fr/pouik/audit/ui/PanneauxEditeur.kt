@@ -121,6 +121,7 @@ fun PanneauReglages(
     onEpaisseur: (Float) -> Unit,
     onForce: (Float) -> Unit,
     onEditeTexte: () -> Unit,
+    onRedresse: () -> Unit,
     onSupprime: () -> Unit,
     onToutEffacer: () -> Unit,
 ) {
@@ -156,6 +157,13 @@ fun PanneauReglages(
                 Text("Modifier le texte")
             }
         }
+        // La sortie de secours d'un quadrilatère mal tiré : sans elle, quatre sommets
+        // malmenés ne se rattrapent qu'en supprimant la forme pour la retracer.
+        if (cible is Forme.Rectangle && cible.coins != null) {
+            OutlinedButton(onClick = onRedresse, modifier = Modifier.fillMaxWidth()) {
+                Text("Redresser le cadre")
+            }
+        }
         if (cible != null) {
             OutlinedButton(onClick = onSupprime, modifier = Modifier.fillMaxWidth()) {
                 Text("Supprimer la forme", color = MaterialTheme.colorScheme.error)
@@ -186,6 +194,7 @@ fun ReglagesCompacts(
     onEpaisseur: (Float) -> Unit,
     onForce: (Float) -> Unit,
     onEditeTexte: () -> Unit,
+    onRedresse: () -> Unit,
     onSupprime: () -> Unit,
 ) {
     Column(
@@ -203,6 +212,9 @@ fun ReglagesCompacts(
             }
             if (selection is Forme.Texte) {
                 TextButton(onClick = onEditeTexte) { Text("Texte") }
+            }
+            if (selection is Forme.Rectangle && selection.coins != null) {
+                TextButton(onClick = onRedresse) { Text("Redresser") }
             }
             if (selection != null) {
                 TextButton(onClick = onSupprime) {

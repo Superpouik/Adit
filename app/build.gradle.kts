@@ -18,8 +18,8 @@ android {
         // ce projet sur les autres et donne java.time natif.
         minSdk = 30
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2"
+        versionCode = 3
+        versionName = "0.3"
     }
 
     // Clé de signature locale, la même que sur les autres projets maison :

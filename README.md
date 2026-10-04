@@ -26,9 +26,11 @@ L'éditeur d'annotations, en écran déplié :
   `Lidl-Vitrolles-003-prise-elec.jpg` se comprend sans l'app.
 - Un **vrai dossier** par audit, dans `Pictures/Audits/<site>` : visible en USB, dans
   l'explorateur de fichiers, et dans la galerie sous forme d'albums séparés.
-- Un **éditeur d'annotations** : rectangle plein ou en contour, ellipse, flèche, crayon,
-  texte sur cartouche, et floutage pour masquer un visage ou un nom avant d'envoyer.
-  Tout se déplace, se redimensionne et se recolore après coup.
+- Un **éditeur d'annotations** : rectangle plein ou en contour, ellipse, flèche, trait,
+  crayon, texte sur cartouche, et floutage pour masquer un visage ou un nom avant
+  d'envoyer. Tout se déplace, se redimensionne et se recolore après coup.
+- Les **rectangles se déforment librement par leurs quatre coins**, pour épouser un
+  écran photographié de biais plutôt que de déborder d'un côté.
 - L'**envoi** des photos ou d'un récapitulatif texte, par mail ou messagerie.
 
 ## Annoter
@@ -38,6 +40,13 @@ passent en rail à gauche et les réglages à droite, la photo gardant le centre
 la même matière se replie en colonne sous l'image.
 
 ![éditeur replié](docs/editeur-replie.png)
+
+Chaque forme sélectionnée montre ses poignées. Sur un rectangle, elles vont où on les
+met : l'aplat devient un quadrilatère quelconque et se cale sur l'objet, quelle que
+soit la perspective. Un bouton « Redresser le cadre » rend le rectangle droit quand on
+s'est emmêlé.
+
+![déformation](docs/deformation.png)
 
 Ce qui sort dans le dossier de l'audit est la photo annotations comprises — personne
 d'autre ne lira notre JSON :
@@ -65,6 +74,24 @@ mais l'original part dans le stockage privé de l'app à la première retouche, 
 lui qu'on réannote à chaque passage. Redessiner les formes sur une image déjà annotée
 les empilerait, et une faute de frappe deviendrait définitive. Le prix est connu : une
 photo retouchée occupe deux fois sa place.
+
+**Un rectangle déformé garde son cadre droit à jour**, comme boîte englobante de ses
+quatre sommets. C'est ce cadre qui sert à attraper la forme au doigt : sans lui, un
+quadrilatère tiré hors de ses limites d'origine resterait visible mais deviendrait
+insélectionnable.
+
+**Le coin opposé sert d'ancre, et il est figé au début du geste.** Recalculé à chaque
+image, il se déplacerait dès qu'on traverse la forme, et le redimensionnement partirait
+en vrille au lieu de se retourner proprement.
+
+**Changer d'outil de tracé lâche la sélection.** La palette agit sur la forme
+sélectionnée quand il y en a une ; sans cette règle, choisir « Trait » puis une couleur
+repeignait la forme précédente au lieu de préparer la suivante. Trouvé en testant, pas
+en relisant.
+
+**Un trait est une flèche sans pointe** — même forme, mêmes gestes, un booléen de
+différence. Une flèche désigne, un trait relie : la ligne d'accroche d'un écran
+suspendu n'a rien à montrer du doigt.
 
 **Les annotations sont en coordonnées normalisées**, de 0 à 1 par rapport à l'image.
 Gardées en pixels, elles se décaleraient au premier changement d'écran — ouvrir déplié
@@ -129,17 +156,18 @@ alors sur un message vide.
 ./gradlew test
 ```
 
-43 tests JVM sur ce qui ne se contrôle pas à l'œil : la transcription des accents et
+52 tests JVM sur ce qui ne se contrôle pas à l'œil : la transcription des accents et
 des caractères interdits dans les noms de dossiers, l'unicité des numéros de clichés à
 travers un redémarrage, la relecture du catalogue, le récapitulatif, la géométrie des
 annotations (rectangle tracé à l'envers, opacité changée sans toucher à la teinte, trait
-mis à l'échelle sans se déplacer) et la relecture des six types de formes en JSON
-polymorphe.
+mis à l'échelle sans se déplacer, sommet tiré qui ne bouge que lui, cadre englobant tenu
+à jour) et la relecture de tous les types de formes en JSON polymorphe, quadrilatères
+déformés compris.
 
 Le reste a été vérifié sur émulateur Android 37, plié (1248×1972) et déplié
 (2448×1848) : création d'un audit, octroi de la permission, prise de vue en rafale,
 légende, renommage du fichier par la légende, déplacement d'un dossier complet,
 suppression, puis annotation complète — rectangle, cartouche de texte, flou,
-redimensionnement à la poignée, enregistrement, ré-ouverture de l'éditeur pour vérifier
-que rien ne s'empile. Fichiers, entrées MediaStore et catalogue contrôlés à chaque
+redimensionnement à la poignée, déformation d'un rectangle en quadrilatère,
+enregistrement, ré-ouverture de l'éditeur pour vérifier que rien ne s'empile. Fichiers, entrées MediaStore et catalogue contrôlés à chaque
 étape.
