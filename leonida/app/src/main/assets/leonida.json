@@ -1,0 +1,599 @@
+{
+ "categories": [
+  {
+   "id": "vetements",
+   "label": "Vêtements",
+   "color": "#FF2E88",
+   "icon": "👕"
+  },
+  {
+   "id": "armes",
+   "label": "Armureries",
+   "color": "#FF4D4D",
+   "icon": "🔫"
+  },
+  {
+   "id": "garage",
+   "label": "Garages",
+   "color": "#FF9A3C",
+   "icon": "🔧"
+  },
+  {
+   "id": "resto",
+   "label": "Restaurants",
+   "color": "#FFD23F",
+   "icon": "🍔"
+  },
+  {
+   "id": "bar",
+   "label": "Bars",
+   "color": "#C77DFF",
+   "icon": "🍹"
+  },
+  {
+   "id": "club",
+   "label": "Clubs",
+   "color": "#B517FF",
+   "icon": "🪩"
+  },
+  {
+   "id": "hopital",
+   "label": "Hôpitaux",
+   "color": "#FFFFFF",
+   "icon": "🏥"
+  },
+  {
+   "id": "police",
+   "label": "Police",
+   "color": "#4D8DFF",
+   "icon": "🚓"
+  },
+  {
+   "id": "banque",
+   "label": "Banques",
+   "color": "#3DDC84",
+   "icon": "💰"
+  },
+  {
+   "id": "essence",
+   "label": "Stations",
+   "color": "#F5A623",
+   "icon": "⛽"
+  },
+  {
+   "id": "transport",
+   "label": "Aéroports & ports",
+   "color": "#19E3D1",
+   "icon": "✈️"
+  },
+  {
+   "id": "bateau",
+   "label": "Marinas",
+   "color": "#2EC4FF",
+   "icon": "🚤"
+  },
+  {
+   "id": "plage",
+   "label": "Plages",
+   "color": "#FFE29A",
+   "icon": "🏖️"
+  },
+  {
+   "id": "planque",
+   "label": "Planques",
+   "color": "#7CFF6B",
+   "icon": "🏠"
+  },
+  {
+   "id": "activite",
+   "label": "Activités",
+   "color": "#FF6FD8",
+   "icon": "🎯"
+  },
+  {
+   "id": "magasin",
+   "label": "Supérettes",
+   "color": "#A0E7E5",
+   "icon": "🛒"
+  },
+  {
+   "id": "coiffeur",
+   "label": "Tatouage & coiffure",
+   "color": "#FF8FA3",
+   "icon": "💈"
+  }
+ ],
+ "regions": [
+  {
+   "name": "Port Gellhorn",
+   "x": 170,
+   "y": 200
+  },
+  {
+   "name": "Mount Kalaga",
+   "x": 520,
+   "y": 170
+  },
+  {
+   "name": "Ambrosia",
+   "x": 560,
+   "y": 470
+  },
+  {
+   "name": "Grassrivers",
+   "x": 560,
+   "y": 900
+  },
+  {
+   "name": "Vice City",
+   "x": 800,
+   "y": 1040
+  },
+  {
+   "name": "Leonida Keys",
+   "x": 470,
+   "y": 1310
+  }
+ ],
+ "pois": [
+  {
+   "id": "vc-beach",
+   "name": "Vice Beach",
+   "category": "plage",
+   "x": 850,
+   "y": 1030,
+   "description": "Plage principale de Vice City, néons et rollers.",
+   "region": "Vice City"
+  },
+  {
+   "id": "vc-ocean",
+   "name": "Ocean Drive",
+   "category": "activite",
+   "x": 835,
+   "y": 990,
+   "description": "Boulevard des hôtels Art déco, idéal pour frimer.",
+   "region": "Vice City"
+  },
+  {
+   "id": "vc-clothes1",
+   "name": "Boutique de luxe — Vice Beach",
+   "category": "vetements",
+   "x": 820,
+   "y": 1010,
+   "description": "Vêtements haut de gamme.",
+   "region": "Vice City"
+  },
+  {
+   "id": "vc-clothes2",
+   "name": "Friperie du Downtown",
+   "category": "vetements",
+   "x": 760,
+   "y": 1060,
+   "description": "Fringues pas chères.",
+   "region": "Vice City"
+  },
+  {
+   "id": "vc-gun",
+   "name": "Armurerie Downtown",
+   "category": "armes",
+   "x": 745,
+   "y": 1085,
+   "description": "Armes, munitions, gilets.",
+   "region": "Vice City"
+  },
+  {
+   "id": "vc-gun2",
+   "name": "Armurerie Little Havana",
+   "category": "armes",
+   "x": 700,
+   "y": 1010,
+   "description": "Armes et accessoires.",
+   "region": "Vice City"
+  },
+  {
+   "id": "vc-garage",
+   "name": "Garage custom Vice City",
+   "category": "garage",
+   "x": 715,
+   "y": 1110,
+   "description": "Peinture, tuning, réparations.",
+   "region": "Vice City"
+  },
+  {
+   "id": "vc-club",
+   "name": "Club de Vice Beach",
+   "category": "club",
+   "x": 860,
+   "y": 1065,
+   "description": "La boîte la plus chaude de la ville.",
+   "region": "Vice City"
+  },
+  {
+   "id": "vc-bar",
+   "name": "Bar du port",
+   "category": "bar",
+   "x": 770,
+   "y": 1125,
+   "description": "Bar à cocktails sur les quais.",
+   "region": "Vice City"
+  },
+  {
+   "id": "vc-resto",
+   "name": "Diner cubain",
+   "category": "resto",
+   "x": 705,
+   "y": 1040,
+   "description": "Sandwichs et café cubain.",
+   "region": "Vice City"
+  },
+  {
+   "id": "vc-burger",
+   "name": "Fast-food Downtown",
+   "category": "resto",
+   "x": 780,
+   "y": 1090,
+   "description": "Burgers à toute heure.",
+   "region": "Vice City"
+  },
+  {
+   "id": "vc-hosp",
+   "name": "Hôpital de Vice City",
+   "category": "hopital",
+   "x": 730,
+   "y": 1000,
+   "description": "Réapparition après un K.O.",
+   "region": "Vice City"
+  },
+  {
+   "id": "vc-police",
+   "name": "Commissariat central",
+   "category": "police",
+   "x": 755,
+   "y": 1035,
+   "description": "Fourrière et poste de police.",
+   "region": "Vice City"
+  },
+  {
+   "id": "vc-bank",
+   "name": "Banque du Downtown",
+   "category": "banque",
+   "x": 770,
+   "y": 1070,
+   "description": "Cible tentante…",
+   "region": "Vice City"
+  },
+  {
+   "id": "vc-gas",
+   "name": "Station-service I-95",
+   "category": "essence",
+   "x": 680,
+   "y": 960,
+   "description": "Carburant et snacks.",
+   "region": "Grassrivers"
+  },
+  {
+   "id": "vc-airport",
+   "name": "Aéroport international",
+   "category": "transport",
+   "x": 640,
+   "y": 1060,
+   "description": "Avions et hélicos.",
+   "region": "Vice City"
+  },
+  {
+   "id": "vc-port",
+   "name": "Port de Vice City",
+   "category": "transport",
+   "x": 800,
+   "y": 1150,
+   "description": "Cargos et conteneurs.",
+   "region": "Vice City"
+  },
+  {
+   "id": "vc-safe",
+   "name": "Planque de Vice City",
+   "category": "planque",
+   "x": 735,
+   "y": 1065,
+   "description": "Sauvegarde, garage personnel.",
+   "region": "Vice City"
+  },
+  {
+   "id": "vc-marina",
+   "name": "Marina",
+   "category": "bateau",
+   "x": 820,
+   "y": 1110,
+   "description": "Location et achat de bateaux.",
+   "region": "Vice City"
+  },
+  {
+   "id": "vc-tattoo",
+   "name": "Salon de tatouage",
+   "category": "coiffeur",
+   "x": 795,
+   "y": 1040,
+   "description": "Tatouages et coupes.",
+   "region": "Vice City"
+  },
+  {
+   "id": "vc-store",
+   "name": "Supérette 24/7",
+   "category": "magasin",
+   "x": 690,
+   "y": 1085,
+   "description": "Tout pour la route.",
+   "region": "Vice City"
+  },
+  {
+   "id": "vc-stadium",
+   "name": "Stade",
+   "category": "activite",
+   "x": 675,
+   "y": 1000,
+   "description": "Matchs et événements.",
+   "region": "Vice City"
+  },
+  {
+   "id": "k-beach",
+   "name": "Plage des Keys",
+   "category": "plage",
+   "x": 530,
+   "y": 1300,
+   "description": "Eaux turquoise.",
+   "region": "Leonida Keys"
+  },
+  {
+   "id": "k-bar",
+   "name": "Bar de plage des Keys",
+   "category": "bar",
+   "x": 470,
+   "y": 1325,
+   "description": "Coucher de soleil garanti.",
+   "region": "Leonida Keys"
+  },
+  {
+   "id": "k-boat",
+   "name": "Location de bateaux des Keys",
+   "category": "bateau",
+   "x": 400,
+   "y": 1340,
+   "description": "Jet-skis et vedettes.",
+   "region": "Leonida Keys"
+  },
+  {
+   "id": "k-gas",
+   "name": "Station des Keys",
+   "category": "essence",
+   "x": 600,
+   "y": 1270,
+   "description": "Dernière pompe avant le large.",
+   "region": "Leonida Keys"
+  },
+  {
+   "id": "k-safe",
+   "name": "Planque des Keys",
+   "category": "planque",
+   "x": 340,
+   "y": 1350,
+   "description": "Bungalow discret.",
+   "region": "Leonida Keys"
+  },
+  {
+   "id": "g-airboat",
+   "name": "Excursions en hydroglisseur",
+   "category": "activite",
+   "x": 560,
+   "y": 880,
+   "description": "Balade dans les marais (gare aux alligators).",
+   "region": "Grassrivers"
+  },
+  {
+   "id": "g-gas",
+   "name": "Station de Grassrivers",
+   "category": "essence",
+   "x": 620,
+   "y": 940,
+   "description": "Station isolée sur la route des marais.",
+   "region": "Grassrivers"
+  },
+  {
+   "id": "g-hunt",
+   "name": "Zone de chasse",
+   "category": "activite",
+   "x": 480,
+   "y": 920,
+   "description": "Chasse et pêche.",
+   "region": "Grassrivers"
+  },
+  {
+   "id": "g-store",
+   "name": "Épicerie du bayou",
+   "category": "magasin",
+   "x": 520,
+   "y": 960,
+   "description": "Appâts, bière, munitions.",
+   "region": "Grassrivers"
+  },
+  {
+   "id": "a-gun",
+   "name": "Armurerie d'Ambrosia",
+   "category": "armes",
+   "x": 580,
+   "y": 500,
+   "description": "Armurerie rurale.",
+   "region": "Ambrosia"
+  },
+  {
+   "id": "a-garage",
+   "name": "Garage d'Ambrosia",
+   "category": "garage",
+   "x": 540,
+   "y": 470,
+   "description": "Pick-ups et réparations.",
+   "region": "Ambrosia"
+  },
+  {
+   "id": "a-diner",
+   "name": "Diner de la route",
+   "category": "resto",
+   "x": 610,
+   "y": 450,
+   "description": "Pancakes et café.",
+   "region": "Ambrosia"
+  },
+  {
+   "id": "a-gas",
+   "name": "Station d'Ambrosia",
+   "category": "essence",
+   "x": 640,
+   "y": 520,
+   "description": "Carburant.",
+   "region": "Ambrosia"
+  },
+  {
+   "id": "a-clothes",
+   "name": "Magasin de vêtements western",
+   "category": "vetements",
+   "x": 560,
+   "y": 430,
+   "description": "Bottes et chapeaux.",
+   "region": "Ambrosia"
+  },
+  {
+   "id": "a-hosp",
+   "name": "Clinique d'Ambrosia",
+   "category": "hopital",
+   "x": 510,
+   "y": 520,
+   "description": "Soins.",
+   "region": "Ambrosia"
+  },
+  {
+   "id": "a-police",
+   "name": "Bureau du shérif",
+   "category": "police",
+   "x": 590,
+   "y": 540,
+   "description": "Shérif du comté.",
+   "region": "Ambrosia"
+  },
+  {
+   "id": "a-safe",
+   "name": "Planque d'Ambrosia",
+   "category": "planque",
+   "x": 500,
+   "y": 450,
+   "description": "Ferme reculée.",
+   "region": "Ambrosia"
+  },
+  {
+   "id": "a-race",
+   "name": "Circuit automobile",
+   "category": "activite",
+   "x": 660,
+   "y": 600,
+   "description": "Courses de rue et dragsters.",
+   "region": "Ambrosia"
+  },
+  {
+   "id": "a-lake",
+   "name": "Lac Leonida",
+   "category": "plage",
+   "x": 470,
+   "y": 640,
+   "description": "Pêche et bateaux.",
+   "region": "Ambrosia"
+  },
+  {
+   "id": "m-park",
+   "name": "Parc national de Mount Kalaga",
+   "category": "activite",
+   "x": 520,
+   "y": 160,
+   "description": "Randonnée, quad, chasse.",
+   "region": "Mount Kalaga"
+  },
+  {
+   "id": "m-camp",
+   "name": "Camping de Kalaga",
+   "category": "planque",
+   "x": 470,
+   "y": 210,
+   "description": "Camping-car comme planque.",
+   "region": "Mount Kalaga"
+  },
+  {
+   "id": "m-gas",
+   "name": "Station du parc",
+   "category": "essence",
+   "x": 600,
+   "y": 230,
+   "description": "Ravitaillement.",
+   "region": "Mount Kalaga"
+  },
+  {
+   "id": "p-port",
+   "name": "Port de Gellhorn",
+   "category": "transport",
+   "x": 120,
+   "y": 230,
+   "description": "Port industriel.",
+   "region": "Port Gellhorn"
+  },
+  {
+   "id": "p-bar",
+   "name": "Bar des dockers",
+   "category": "bar",
+   "x": 160,
+   "y": 170,
+   "description": "Bière tiède, ambiance rude.",
+   "region": "Port Gellhorn"
+  },
+  {
+   "id": "p-gun",
+   "name": "Armurerie de Port Gellhorn",
+   "category": "armes",
+   "x": 200,
+   "y": 250,
+   "description": "Armes.",
+   "region": "Port Gellhorn"
+  },
+  {
+   "id": "p-garage",
+   "name": "Casse auto",
+   "category": "garage",
+   "x": 230,
+   "y": 200,
+   "description": "Pièces détachées.",
+   "region": "Port Gellhorn"
+  },
+  {
+   "id": "p-motel",
+   "name": "Motel de Gellhorn",
+   "category": "planque",
+   "x": 250,
+   "y": 240,
+   "description": "Chambre à la semaine.",
+   "region": "Port Gellhorn"
+  },
+  {
+   "id": "p-store",
+   "name": "Supérette de Gellhorn",
+   "category": "magasin",
+   "x": 190,
+   "y": 210,
+   "description": "Supérette.",
+   "region": "Port Gellhorn"
+  },
+  {
+   "id": "p-hosp",
+   "name": "Hôpital de Gellhorn",
+   "category": "hopital",
+   "x": 140,
+   "y": 200,
+   "description": "Soins.",
+   "region": "Port Gellhorn"
+  }
+ ]
+}
